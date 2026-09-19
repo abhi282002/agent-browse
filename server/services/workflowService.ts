@@ -151,12 +151,31 @@ export class WorkflowService {
    * Update workflow and its node/edge graph
    */
   static async update(id: string, input: UpdateWorkflowInput, userId?: string) {
-    const existing = await prisma.workflow.findUnique({
+    let existing = await prisma.workflow.findUnique({
       where: { id },
     });
 
     if (!existing) {
-      throw new Error("Workflow not found");
+      const defaultWf = DEFAULT_WORKFLOWS.find((w) => w.id === id);
+      if (defaultWf) {
+        existing = await prisma.workflow.create({
+          data: {
+            id: defaultWf.id,
+            name: input.name?.trim() || defaultWf.name,
+            description: input.description?.trim() || defaultWf.description,
+            category: input.category?.trim() || defaultWf.category,
+            targetUrl: input.targetUrl?.trim() || defaultWf.targetUrl,
+            status: input.status || defaultWf.status,
+            aiModel: input.aiModel || "Gemini 2.5 Pro Vision",
+            sandboxEnv: input.sandboxEnv || "Chromium 128 (CDP Protocol)",
+            nodes: (input.nodes || defaultWf.nodes) as unknown as Prisma.InputJsonValue,
+            edges: (input.edges || defaultWf.edges) as unknown as Prisma.InputJsonValue,
+            userId: userId || null,
+          },
+        });
+      } else {
+        throw new Error("Workflow not found");
+      }
     }
 
     if (userId && existing.userId && existing.userId !== userId) {

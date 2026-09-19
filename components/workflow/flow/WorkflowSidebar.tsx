@@ -2,9 +2,9 @@
 
 
 import type { WorkflowBlueprint, WorkflowNodeType } from "./types";
+import { WorkflowExecutionPanel } from "./execution/WorkflowExecutionPanel";
 import {
   BotIcon,
-  PlayIcon,
   TerminalIcon,
   SparklesIcon,
 } from "@/components/ui/icons";
@@ -19,6 +19,9 @@ interface WorkflowSidebarProps {
   onOpenNodeConfig?: () => void;
   onRunWorkflow: () => void;
   isRunning: boolean;
+  onSaveWorkflow?: () => void;
+  isSaving?: boolean;
+  saveStatus?: "idle" | "saving" | "saved" | "error";
 }
 
 export function WorkflowSidebar({
@@ -31,6 +34,9 @@ export function WorkflowSidebar({
   onOpenNodeConfig,
   onRunWorkflow,
   isRunning,
+  onSaveWorkflow,
+  isSaving = false,
+  saveStatus = "idle",
 }: WorkflowSidebarProps) {
   // Default to first running or first node if none selected
   const activeStepData =
@@ -53,6 +59,39 @@ export function WorkflowSidebar({
           </div>
 
           <div className="flex items-center gap-1.5">
+            {onSaveWorkflow && (
+              <button
+                type="button"
+                onClick={onSaveWorkflow}
+                disabled={isSaving}
+                className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold shadow-2xs transition-all cursor-pointer ${
+                  saveStatus === "saved"
+                    ? "bg-emerald-600 text-white"
+                    : saveStatus === "error"
+                    ? "bg-red-600 text-white"
+                    : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                } disabled:opacity-50`}
+                title="Save workflow nodes & edges to database"
+              >
+                {isSaving ? (
+                  <>
+                    <span className="h-2.5 w-2.5 animate-spin rounded-full border border-white/30 border-t-white" />
+                    <span>Saving...</span>
+                  </>
+                ) : saveStatus === "saved" ? (
+                  <>
+                    <span>✓</span>
+                    <span>Saved</span>
+                  </>
+                ) : (
+                  <>
+                    <span>💾</span>
+                    <span>Save</span>
+                  </>
+                )}
+              </button>
+            )}
+
             {onOpenNodeCatalog && (
               <button
                 type="button"
@@ -111,40 +150,11 @@ export function WorkflowSidebar({
       </div>
 
       {/* Execution Controls & Target */}
-      <div className="rounded-xl border border-zinc-200/80 bg-zinc-50 p-3 space-y-2">
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-zinc-500 font-medium">Target Web URL</span>
-          <span className="text-[11px] font-mono text-zinc-700 truncate max-w-[160px]">
-            {workflow.targetUrl}
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between text-xs">
-          <span className="text-zinc-500 font-medium">Node Pipeline</span>
-          <span className="font-semibold text-zinc-800 font-mono">
-            {workflow.nodes.length} Steps
-          </span>
-        </div>
-
-        <button
-          type="button"
-          onClick={onRunWorkflow}
-          disabled={isRunning}
-          className="mt-1 flex h-8 w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 font-semibold text-xs text-white hover:bg-emerald-500 transition-colors shadow-2xs cursor-pointer disabled:opacity-60"
-        >
-          {isRunning ? (
-            <>
-              <span className="h-3 w-3 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-              <span>Executing Pipeline...</span>
-            </>
-          ) : (
-            <>
-              <PlayIcon className="h-3.5 w-3.5" />
-              <span>Simulate Pipeline</span>
-            </>
-          )}
-        </button>
-      </div>
+      <WorkflowExecutionPanel
+        workflow={workflow}
+        onRunLocal={onRunWorkflow}
+        isLocalRunning={isRunning}
+      />
 
       {/* Selected Node Details Inspector */}
       {activeStepData && (

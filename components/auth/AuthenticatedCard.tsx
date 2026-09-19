@@ -19,8 +19,9 @@ interface AuthenticatedCardProps {
 }
 
 export function AuthenticatedCard({ user, onSignOut }: AuthenticatedCardProps) {
-  const [isLaunching, setIsLaunching] = useState(false);
   const [launchMessage, setLaunchMessage] = useState<string | null>(null);
+  const [liveViewUrl, setLiveViewUrl] = useState<string | null>(null);
+  const [launchError, setLaunchError] = useState<string | null>(null);
 
   const utils = trpc.useContext();
   const signOutMutation = trpc.auth.signOut.useMutation({
@@ -30,13 +31,27 @@ export function AuthenticatedCard({ user, onSignOut }: AuthenticatedCardProps) {
     },
   });
 
+  const launchSandboxMutation = trpc.execution.launchSandbox.useMutation({
+    onSuccess: (data) => {
+      setLaunchMessage(
+        `Browserbase VM active! Session: ${data.sessionId.slice(0, 14)}...`
+      );
+      if (data.liveViewUrl) {
+        setLiveViewUrl(data.liveViewUrl);
+      }
+      setLaunchError(null);
+    },
+    onError: (err) => {
+      setLaunchError(err.message || "Failed to initialize cloud browser");
+      setLaunchMessage(null);
+    },
+  });
+
   const handleLaunchSandbox = () => {
-    setIsLaunching(true);
-    setLaunchMessage("Allocating isolated Chromium VM on port 9222...");
-    setTimeout(() => {
-      setIsLaunching(false);
-      setLaunchMessage("Sandbox active! CDP session streaming on cluster 01.");
-    }, 1200);
+    setLiveViewUrl(null);
+    setLaunchError(null);
+    setLaunchMessage("Allocating Browserbase cloud Chromium session...");
+    launchSandboxMutation.mutate();
   };
 
   const initials = user.name
@@ -143,10 +158,32 @@ export function AuthenticatedCard({ user, onSignOut }: AuthenticatedCardProps) {
           <motion.div
             initial={{ opacity: 0, y: -4 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs text-emerald-800 flex items-center gap-2"
+            className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-xs text-emerald-800 space-y-1.5"
           >
-            <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
-            <span>{launchMessage}</span>
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping shrink-0" />
+              <span className="font-medium">{launchMessage}</span>
+            </div>
+            {liveViewUrl && (
+              <a
+                href={liveViewUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-900 underline hover:text-emerald-700"
+              >
+                <span>Open Browserbase Live Stream ↗</span>
+              </a>
+            )}
+          </motion.div>
+        )}
+
+        {launchError && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-800"
+          >
+            {launchError}
           </motion.div>
         )}
 
@@ -154,19 +191,19 @@ export function AuthenticatedCard({ user, onSignOut }: AuthenticatedCardProps) {
         <div className="space-y-2.5">
           <button
             type="button"
-            disabled={isLaunching}
+            disabled={launchSandboxMutation.isPending}
             onClick={handleLaunchSandbox}
             className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 font-medium text-sm text-white shadow-sm hover:bg-zinc-800 active:scale-[0.99] transition-all disabled:opacity-60 cursor-pointer"
           >
-            {isLaunching ? (
+            {launchSandboxMutation.isPending ? (
               <>
                 <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                <span>Spinning up Sandbox...</span>
+                <span>Spinning up Browserbase Sandbox...</span>
               </>
             ) : (
               <>
                 <PlayIcon className="h-4 w-4" />
-                <span>Launch New Agent Sandbox</span>
+                <span>Launch Cloud Agent Sandbox</span>
               </>
             )}
           </button>

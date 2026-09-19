@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 import type { NodeTemplate } from "../types";
-import { NODE_TEMPLATES } from "./nodeTemplates";
 import { BotIcon, SparklesIcon } from "@/components/ui/icons";
 
 interface NodeCatalogModalProps {
@@ -27,8 +26,7 @@ export function NodeCatalogModal({
     staleTime: 30 * 1000,
   });
 
-  const availableTemplates: NodeTemplate[] =
-    serverTemplates && serverTemplates.length > 0 ? (serverTemplates as NodeTemplate[]) : NODE_TEMPLATES;
+  const availableTemplates: NodeTemplate[] = (serverTemplates as NodeTemplate[]) ?? [];
 
   if (!isOpen) return null;
 
@@ -133,66 +131,87 @@ export function NodeCatalogModal({
         </div>
 
         {/* Grid of Node Templates */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[380px] overflow-y-auto p-1">
-          {filteredTemplates.map((tpl) => (
-            <div
-              key={tpl.id || tpl.title}
-              className={`flex flex-col justify-between rounded-xl border p-3.5 transition-all space-y-2.5 ${
-                tpl.isPremium
-                  ? "border-amber-200/90 bg-amber-50/20 hover:border-amber-300 hover:bg-white"
-                  : "border-zinc-200/80 bg-zinc-50/40 hover:border-zinc-300 hover:bg-white"
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-                    {tpl.category}
-                  </span>
-                  <div className="flex items-center gap-1">
-                    {tpl.isPremium ? (
-                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200 shadow-2xs">
-                        ★ PRO
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
-                        FREE
-                      </span>
-                    )}
-                    <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-mono text-zinc-600">
-                      {tpl.badge}
+        {filteredTemplates.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-8 text-center rounded-xl border border-dashed border-zinc-200 bg-zinc-50">
+            <p className="text-xs font-semibold text-zinc-700">No node templates found in database</p>
+            <p className="text-[11px] text-zinc-500 mt-1 max-w-xs">
+              Admins can publish custom nodes and configure Free vs PRO tiers via Admin Node Studio.
+            </p>
+            {onOpenAdmin && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenAdmin();
+                }}
+                className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors"
+              >
+                ⚙️ Open Admin Node Studio
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[380px] overflow-y-auto p-1">
+            {filteredTemplates.map((tpl) => (
+              <div
+                key={tpl.id || tpl.title}
+                className={`flex flex-col justify-between rounded-xl border p-3.5 transition-all space-y-2.5 ${
+                  tpl.isPremium
+                    ? "border-amber-200/90 bg-amber-50/20 hover:border-amber-300 hover:bg-white"
+                    : "border-zinc-200/80 bg-zinc-50/40 hover:border-zinc-300 hover:bg-white"
+                }`}
+              >
+                <div>
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+                      {tpl.category}
                     </span>
+                    <div className="flex items-center gap-1">
+                      {tpl.isPremium ? (
+                        <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200 shadow-2xs">
+                          ★ PRO
+                        </span>
+                      ) : (
+                        <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
+                          FREE
+                        </span>
+                      )}
+                      <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-mono text-zinc-600">
+                        {tpl.badge}
+                      </span>
+                    </div>
                   </div>
+
+                  <h4 className="text-xs font-bold text-zinc-900">{tpl.title}</h4>
+                  <p className="text-[11px] text-zinc-500 leading-relaxed mt-1 line-clamp-2">
+                    {tpl.description}
+                  </p>
                 </div>
 
-                <h4 className="text-xs font-bold text-zinc-900">{tpl.title}</h4>
-                <p className="text-[11px] text-zinc-500 leading-relaxed mt-1 line-clamp-2">
-                  {tpl.description}
-                </p>
-              </div>
-
-              <div className="pt-2 border-t border-zinc-100/80 flex items-center justify-between">
-                <div className="text-[10px] text-zinc-400 font-mono">
-                  {tpl.defaultMetrics?.[0] ? `${tpl.defaultMetrics[0].label}: ${tpl.defaultMetrics[0].value}` : "Ready"}
+                <div className="pt-2 border-t border-zinc-100/80 flex items-center justify-between">
+                  <div className="text-[10px] text-zinc-400 font-mono">
+                    {tpl.defaultMetrics?.[0] ? `${tpl.defaultMetrics[0].label}: ${tpl.defaultMetrics[0].value}` : "Ready"}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onSelectTemplate(tpl);
+                      onClose();
+                    }}
+                    className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer shadow-2xs ${
+                      tpl.isPremium
+                        ? "bg-amber-600 text-white hover:bg-amber-500"
+                        : "bg-zinc-900 text-white hover:bg-zinc-800"
+                    }`}
+                  >
+                    <SparklesIcon className="h-3 w-3 text-white" />
+                    <span>{tpl.isPremium ? "Add PRO Node" : "Insert Node"}</span>
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onSelectTemplate(tpl);
-                    onClose();
-                  }}
-                  className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer shadow-2xs ${
-                    tpl.isPremium
-                      ? "bg-amber-600 text-white hover:bg-amber-500"
-                      : "bg-zinc-900 text-white hover:bg-zinc-800"
-                  }`}
-                >
-                  <SparklesIcon className="h-3 w-3 text-white" />
-                  <span>{tpl.isPremium ? "Add PRO Node" : "Insert Node"}</span>
-                </button>
               </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

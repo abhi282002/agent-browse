@@ -9,6 +9,7 @@ import { NodeCatalogModal } from "./nodes/NodeCatalogModal";
 import { NodeConfigDrawer } from "./nodes/NodeConfigDrawer";
 import { AdminNodeManagerModal } from "./admin/AdminNodeManagerModal";
 import { CreateWorkflowView } from "./views/CreateWorkflowView";
+import { BotIcon, SparklesIcon } from "@/components/ui/icons";
 
 interface WorkflowDashboardProps {
   initialCreateMode?: boolean;
@@ -28,6 +29,11 @@ export function WorkflowDashboard({ initialCreateMode = false }: WorkflowDashboa
     setSelectedNode,
     runPipeline,
     isSyncing,
+    saveWorkflow,
+    updateGraph,
+    saveStatus,
+    lastSavedAt,
+    isSaving,
   } = useWorkflowManager();
 
   const [isCreateView, setIsCreateView] = useState(initialCreateMode);
@@ -48,6 +54,29 @@ export function WorkflowDashboard({ initialCreateMode = false }: WorkflowDashboa
     );
   }
 
+  // If no workflow exists in DB yet
+  if (!activeWorkflow) {
+    return (
+      <div className="w-full flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-white p-12 text-center shadow-xs">
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-900 text-white shadow-xs mb-4">
+          <BotIcon className="h-6 w-6" />
+        </div>
+        <h3 className="text-lg font-bold text-zinc-900">No Workflows in Database</h3>
+        <p className="mt-1 text-sm text-zinc-500 max-w-md">
+          Create your first autonomous browser agent workflow to start automating tasks with Chromium and AI vision.
+        </p>
+        <button
+          type="button"
+          onClick={() => setIsCreateView(true)}
+          className="mt-5 flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800 shadow-sm transition-all cursor-pointer"
+        >
+          <SparklesIcon className="h-3.5 w-3.5 text-emerald-400" />
+          <span>+ Create New Workflow</span>
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="w-full flex flex-col gap-4">
       {/* 2-Column Responsive Layout: Grid Canvas on Left, Workflow Details Sidebar on Right */}
@@ -62,6 +91,37 @@ export function WorkflowDashboard({ initialCreateMode = false }: WorkflowDashboa
             />
 
             <div className="flex items-center gap-2 text-[11px] text-zinc-500 font-mono">
+              <button
+                type="button"
+                onClick={() => saveWorkflow()}
+                disabled={isSaving}
+                className={`flex items-center gap-1 rounded-lg border px-2.5 py-0.5 text-[11px] font-bold transition-all cursor-pointer ${
+                  saveStatus === "saved"
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                    : saveStatus === "error"
+                    ? "border-red-300 bg-red-50 text-red-800"
+                    : "border-zinc-300/80 bg-white text-zinc-700 hover:bg-zinc-50"
+                } disabled:opacity-50`}
+                title="Save current workflow and nodes to PostgreSQL"
+              >
+                {isSaving ? (
+                  <>
+                    <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-ping" />
+                    <span>Saving...</span>
+                  </>
+                ) : saveStatus === "saved" ? (
+                  <>
+                    <span className="text-emerald-600">✓</span>
+                    <span className="text-emerald-800">Saved</span>
+                  </>
+                ) : (
+                  <>
+                    <span>💾</span>
+                    <span>Save</span>
+                  </>
+                )}
+              </button>
+
               <button
                 type="button"
                 onClick={() => setIsAdminModalOpen(true)}
@@ -98,6 +158,11 @@ export function WorkflowDashboard({ initialCreateMode = false }: WorkflowDashboa
             initialNodes={activeWorkflow.nodes}
             initialEdges={activeWorkflow.edges}
             onSelectNode={setSelectedNode}
+            onSaveWorkflow={saveWorkflow}
+            onGraphChange={updateGraph}
+            isSaving={isSaving}
+            saveStatus={saveStatus}
+            lastSavedAt={lastSavedAt}
           />
         </div>
 
@@ -113,6 +178,9 @@ export function WorkflowDashboard({ initialCreateMode = false }: WorkflowDashboa
             onOpenNodeConfig={() => setIsConfigDrawerOpen(true)}
             onRunWorkflow={runPipeline}
             isRunning={isRunning}
+            onSaveWorkflow={() => saveWorkflow()}
+            isSaving={isSaving}
+            saveStatus={saveStatus}
           />
         </div>
       </div>
