@@ -26,6 +26,7 @@ export function WorkflowDashboard({ initialCreateMode = false }: WorkflowDashboa
     deleteNode,
     setSelectedNode,
     runPipeline,
+    isSyncing,
   } = useWorkflowManager();
 
   const [isCreateView, setIsCreateView] = useState(initialCreateMode);
@@ -59,6 +60,20 @@ export function WorkflowDashboard({ initialCreateMode = false }: WorkflowDashboa
             />
 
             <div className="hidden sm:flex items-center gap-2 text-[11px] text-zinc-500 font-mono">
+              <span className="flex items-center gap-1">
+                {isSyncing ? (
+                  <>
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
+                    <span className="text-amber-700">Syncing...</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    <span className="text-emerald-700 font-medium">DB Synced</span>
+                  </>
+                )}
+              </span>
+              <span>•</span>
               <span>Nodes: {activeWorkflow.nodes.length}</span>
               <span>•</span>
               <span>Edges: {activeWorkflow.edges.length}</span>
