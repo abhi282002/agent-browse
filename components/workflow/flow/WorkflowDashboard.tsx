@@ -1,78 +1,49 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
-import type { WorkflowBlueprint, WorkflowNodeType } from "./types";
-import { DEFAULT_WORKFLOWS } from "./defaultFlows";
+import React, { useState } from "react";
+import { useWorkflowManager } from "./hooks/useWorkflowManager";
 import { WorkflowCanvas } from "./WorkflowCanvas";
 import { WorkflowSidebar } from "./WorkflowSidebar";
-import { CreateWorkflowModal } from "./CreateWorkflowModal";
+import { NodePalette } from "./nodes/NodePalette";
+import { NodeCatalogModal } from "./nodes/NodeCatalogModal";
+import { NodeConfigDrawer } from "./nodes/NodeConfigDrawer";
+import { CreateWorkflowView } from "./views/CreateWorkflowView";
 
-export function WorkflowDashboard() {
-  const [workflows, setWorkflows] = useState<WorkflowBlueprint[]>(DEFAULT_WORKFLOWS);
-  const [activeWorkflowId, setActiveWorkflowId] = useState<string>(DEFAULT_WORKFLOWS[0].id);
-  const [selectedNode, setSelectedNode] = useState<WorkflowNodeType | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isRunning, setIsRunning] = useState(false);
+interface WorkflowDashboardProps {
+  initialCreateMode?: boolean;
+}
 
-  const activeWorkflow =
-    workflows.find((w) => w.id === activeWorkflowId) || workflows[0];
+export function WorkflowDashboard({ initialCreateMode = false }: WorkflowDashboardProps) {
+  const {
+    workflows,
+    activeWorkflow,
+    selectedNode,
+    isRunning,
+    selectWorkflow,
+    createWorkflow,
+    addNode,
+    updateNode,
+    deleteNode,
+    setSelectedNode,
+    runPipeline,
+  } = useWorkflowManager();
 
-  const handleSelectWorkflow = useCallback((id: string) => {
-    setActiveWorkflowId(id);
-    setSelectedNode(null);
-  }, []);
+  const [isCreateView, setIsCreateView] = useState(initialCreateMode);
+  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [isConfigDrawerOpen, setIsConfigDrawerOpen] = useState(false);
 
-  const handleCreateWorkflow = useCallback((newWf: WorkflowBlueprint) => {
-    setWorkflows((prev) => [newWf, ...prev]);
-    setActiveWorkflowId(newWf.id);
-    setSelectedNode(null);
-  }, []);
-
-  const handleRunWorkflow = useCallback(() => {
-    if (isRunning) return;
-    setIsRunning(true);
-
-    const totalNodes = activeWorkflow.nodes.length;
-    let currentIdx = 0;
-
-    const interval = setInterval(() => {
-      if (currentIdx >= totalNodes) {
-        clearInterval(interval);
-        setIsRunning(false);
-        return;
-      }
-
-      setWorkflows((prev) =>
-        prev.map((wf) => {
-          if (wf.id !== activeWorkflow.id) return wf;
-
-          const updatedNodes = wf.nodes.map((node, i) => {
-            if (i === currentIdx) {
-              return {
-                ...node,
-                data: { ...node.data, status: "running" as const },
-              };
-            }
-            if (i < currentIdx) {
-              return {
-                ...node,
-                data: { ...node.data, status: "completed" as const },
-              };
-            }
-            return {
-              ...node,
-              data: { ...node.data, status: "idle" as const },
-            };
-          });
-
-          return { ...wf, nodes: updatedNodes };
-        })
-      );
-
-      setSelectedNode(activeWorkflow.nodes[currentIdx] || null);
-      currentIdx++;
-    }, 1200);
-  }, [isRunning, activeWorkflow]);
+  // If create workflow view is open
+  if (isCreateView) {
+    return (
+      <CreateWorkflowView
+        onCancel={() => setIsCreateView(false)}
+        onCreate={(params) => {
+          createWorkflow(params);
+          setIsCreateView(false);
+        }}
+      />
+    );
+  }
 
   return (
     <div className="w-full flex flex-col gap-4">
@@ -80,7 +51,24 @@ export function WorkflowDashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
         {/* Left: React Flow Grid Canvas (8 cols) */}
         <div className="lg:col-span-8 flex flex-col gap-3">
+          {/* Top Canvas Bar with Node Palette */}
+          <div className="flex items-center justify-between gap-3">
+            <NodePalette
+              onAddNode={addNode}
+              onOpenCatalog={() => setIsCatalogOpen(true)}
+            />
+
+            <div className="hidden sm:flex items-center gap-2 text-[11px] text-zinc-500 font-mono">
+              <span>Nodes: {activeWorkflow.nodes.length}</span>
+              <span>•</span>
+              <span>Edges: {activeWorkflow.edges.length}</span>
+            </div>
+          </div>
+
+          {/* React Flow Interactive Grid Canvas */}
           <WorkflowCanvas
+            key={activeWorkflow.id}
+            workflowId={activeWorkflow.id}
             initialNodes={activeWorkflow.nodes}
             initialEdges={activeWorkflow.edges}
             onSelectNode={setSelectedNode}
@@ -88,25 +76,38 @@ export function WorkflowDashboard() {
           />
         </div>
 
-        {/* Right: Sidebar with Workflow Name & Inspector (4 cols) */}
+        {/* Right: Sidebar with Workflow Name, Execution Trigger & Node Details (4 cols) */}
         <div className="lg:col-span-4 flex flex-col">
           <WorkflowSidebar
             workflow={activeWorkflow}
             allWorkflows={workflows}
-            onSelectWorkflow={handleSelectWorkflow}
+            onSelectWorkflow={selectWorkflow}
             selectedNode={selectedNode}
-            onOpenCreateModal={() => setIsCreateModalOpen(true)}
-            onRunWorkflow={handleRunWorkflow}
+            onOpenCreateModal={() => setIsCreateView(true)}
+            onOpenNodeCatalog={() => setIsCatalogOpen(true)}
+            onOpenNodeConfig={() => setIsConfigDrawerOpen(true)}
+            onRunWorkflow={runPipeline}
             isRunning={isRunning}
           />
         </div>
       </div>
 
-      {/* Screen / Modal to Create New Workflow */}
-      <CreateWorkflowModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onCreate={handleCreateWorkflow}
+      {/* Node Catalog Modal */}
+      <NodeCatalogModal
+        isOpen={isCatalogOpen}
+        onClose={() => setIsCatalogOpen(false)}
+        onSelectTemplate={(template) => {
+          addNode(template);
+        }}
+      />
+
+      {/* Node Configuration Drawer */}
+      <NodeConfigDrawer
+        node={selectedNode}
+        isOpen={isConfigDrawerOpen}
+        onClose={() => setIsConfigDrawerOpen(false)}
+        onSave={updateNode}
+        onDelete={deleteNode}
       />
     </div>
   );

@@ -1,14 +1,12 @@
 "use client";
 
-import React from "react";
+
 import type { WorkflowBlueprint, WorkflowNodeType } from "./types";
 import {
   BotIcon,
   PlayIcon,
   TerminalIcon,
   SparklesIcon,
-  CheckIcon,
-  ExternalLinkIcon,
 } from "@/components/ui/icons";
 
 interface WorkflowSidebarProps {
@@ -17,6 +15,8 @@ interface WorkflowSidebarProps {
   onSelectWorkflow: (id: string) => void;
   selectedNode: WorkflowNodeType | null;
   onOpenCreateModal: () => void;
+  onOpenNodeCatalog?: () => void;
+  onOpenNodeConfig?: () => void;
   onRunWorkflow: () => void;
   isRunning: boolean;
 }
@@ -27,6 +27,8 @@ export function WorkflowSidebar({
   onSelectWorkflow,
   selectedNode,
   onOpenCreateModal,
+  onOpenNodeCatalog,
+  onOpenNodeConfig,
   onRunWorkflow,
   isRunning,
 }: WorkflowSidebarProps) {
@@ -50,14 +52,26 @@ export function WorkflowSidebar({
             </span>
           </div>
 
-          <button
-            type="button"
-            onClick={onOpenCreateModal}
-            className="flex items-center gap-1 rounded-lg bg-zinc-900 px-2.5 py-1 text-xs font-medium text-white hover:bg-zinc-800 transition-colors cursor-pointer shadow-2xs"
-          >
-            <SparklesIcon className="h-3 w-3 text-emerald-400" />
-            <span>+ New</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            {onOpenNodeCatalog && (
+              <button
+                type="button"
+                onClick={onOpenNodeCatalog}
+                className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-colors cursor-pointer shadow-2xs"
+                title="Add Step Node"
+              >
+                <span>+ Step</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onOpenCreateModal}
+              className="flex items-center gap-1 rounded-lg bg-zinc-900 px-2.5 py-1 text-xs font-medium text-white hover:bg-zinc-800 transition-colors cursor-pointer shadow-2xs"
+            >
+              <SparklesIcon className="h-3 w-3 text-emerald-400" />
+              <span>+ New Wf</span>
+            </button>
+          </div>
         </div>
 
         {/* Workflow Name with Switcher Dropdown */}
@@ -144,9 +158,21 @@ export function WorkflowSidebar({
                 {activeStepData.title}
               </span>
             </div>
-            <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-mono font-medium text-zinc-600">
-              {activeStepData.badge}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-mono font-medium text-zinc-600">
+                {activeStepData.badge}
+              </span>
+              {onOpenNodeConfig && (
+                <button
+                  type="button"
+                  onClick={onOpenNodeConfig}
+                  className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] font-medium text-zinc-700 hover:bg-zinc-100 hover:border-zinc-300 transition-colors cursor-pointer"
+                  title="Edit and configure step parameters"
+                >
+                  Edit
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="rounded-xl border border-zinc-200/70 bg-white p-3 space-y-2 text-xs">

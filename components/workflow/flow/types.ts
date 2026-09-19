@@ -2,6 +2,14 @@ import type { Node, Edge } from "@xyflow/react";
 
 export type StepNodeStatus = "idle" | "running" | "completed" | "failed";
 
+export type NodeArchetype =
+  | "navigation"
+  | "grounding"
+  | "action"
+  | "form"
+  | "extraction"
+  | "webhook";
+
 export interface WorkflowNodeData extends Record<string, unknown> {
   stepNumber: number;
   title: string;
@@ -13,6 +21,10 @@ export interface WorkflowNodeData extends Record<string, unknown> {
   status: StepNodeStatus;
   metrics: { label: string; value: string }[];
   logLines: string[];
+  archetype?: NodeArchetype;
+  selector?: string;
+  payload?: string;
+  timeoutMs?: number;
 }
 
 export type WorkflowNodeType = Node<WorkflowNodeData, "workflowStep">;
@@ -25,6 +37,19 @@ export interface WorkflowBlueprint {
   targetUrl: string;
   status: "idle" | "running" | "completed" | "paused";
   createdAt: string;
+  aiModel?: string;
+  sandboxEnv?: string;
   nodes: WorkflowNodeType[];
   edges: Edge[];
+}
+
+export interface NodeTemplate {
+  archetype: NodeArchetype;
+  title: string;
+  category: string;
+  badge: string;
+  description: string;
+  actionSummary: string;
+  defaultMetrics: { label: string; value: string }[];
+  defaultLogs: string[];
 }
