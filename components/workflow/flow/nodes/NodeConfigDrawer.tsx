@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import type { WorkflowNodeType, WorkflowNodeData } from "../types";
-import { BotIcon, TerminalIcon, CheckIcon } from "@/components/ui/icons";
+import { TerminalIcon, CheckIcon } from "@/components/ui/icons";
 
 interface NodeConfigDrawerProps {
   node: WorkflowNodeType | null;
@@ -12,38 +12,26 @@ interface NodeConfigDrawerProps {
   onDelete: (nodeId: string) => void;
 }
 
-export function NodeConfigDrawer({
+function NodeConfigDrawerContent({
   node,
-  isOpen,
   onClose,
   onSave,
   onDelete,
-}: NodeConfigDrawerProps) {
-  const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("");
-  const [badge, setBadge] = useState("");
-  const [url, setUrl] = useState("");
-  const [selector, setSelector] = useState("");
-  const [actionSummary, setActionSummary] = useState("");
-  const [description, setDescription] = useState("");
-  const [timeoutMs, setTimeoutMs] = useState(5000);
+}: {
+  node: WorkflowNodeType;
+  onClose: () => void;
+  onSave: (nodeId: string, updatedData: Partial<WorkflowNodeData>) => void;
+  onDelete: (nodeId: string) => void;
+}) {
+  const [title, setTitle] = useState(node.data.title || "");
+  const [category, setCategory] = useState(node.data.category || "");
+  const [badge, setBadge] = useState(node.data.badge || "");
+  const [url, setUrl] = useState(node.data.url || "");
+  const [selector, setSelector] = useState(node.data.selector || "");
+  const [actionSummary, setActionSummary] = useState(node.data.actionSummary || "");
+  const [description, setDescription] = useState(node.data.description || "");
+  const [timeoutMs, setTimeoutMs] = useState(node.data.timeoutMs || 5000);
   const [savedSuccess, setSavedSuccess] = useState(false);
-
-  useEffect(() => {
-    if (node) {
-      setTitle(node.data.title || "");
-      setCategory(node.data.category || "");
-      setBadge(node.data.badge || "");
-      setUrl(node.data.url || "");
-      setSelector(node.data.selector || "");
-      setActionSummary(node.data.actionSummary || "");
-      setDescription(node.data.description || "");
-      setTimeoutMs(node.data.timeoutMs || 5000);
-      setSavedSuccess(false);
-    }
-  }, [node]);
-
-  if (!isOpen || !node) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +50,7 @@ export function NodeConfigDrawer({
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[420px] border-l border-zinc-200 bg-white p-5 shadow-2xl flex flex-col justify-between animate-in slide-in-from-right duration-200">
+    <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[420px] border-l border-zinc-200 bg-white p-5 shadow-2xl flex flex-col justify-between">
       <div className="space-y-4 overflow-y-auto pr-1">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
@@ -238,5 +226,25 @@ export function NodeConfigDrawer({
         </div>
       </div>
     </div>
+  );
+}
+
+export function NodeConfigDrawer({
+  node,
+  isOpen,
+  onClose,
+  onSave,
+  onDelete,
+}: NodeConfigDrawerProps) {
+  if (!isOpen || !node) return null;
+
+  return (
+    <NodeConfigDrawerContent
+      key={node.id}
+      node={node}
+      onClose={onClose}
+      onSave={onSave}
+      onDelete={onDelete}
+    />
   );
 }

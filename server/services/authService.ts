@@ -19,6 +19,8 @@ export interface UserSessionPayload {
   name: string;
   email: string;
   workspaceName: string;
+  role: string;
+  plan: string;
   createdAt: Date;
 }
 
@@ -64,6 +66,8 @@ export class AuthService {
         name: user.name,
         email: user.email,
         workspaceName: user.workspaceName ?? "Default Workspace",
+        role: user.role,
+        plan: user.plan,
         createdAt: user.createdAt,
       },
     };
@@ -103,6 +107,8 @@ export class AuthService {
         name: user.name,
         email: user.email,
         workspaceName: user.workspaceName ?? "Default Workspace",
+        role: user.role,
+        plan: user.plan,
         createdAt: user.createdAt,
       },
     };
@@ -140,6 +146,8 @@ export class AuthService {
       name: session.user.name,
       email: session.user.email,
       workspaceName: session.user.workspaceName ?? "Default Workspace",
+      role: session.user.role,
+      plan: session.user.plan,
       createdAt: session.user.createdAt,
     };
   }

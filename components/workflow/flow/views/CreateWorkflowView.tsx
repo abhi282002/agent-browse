@@ -1,8 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import type { WorkflowBlueprint } from "../types";
-import { BotIcon, SparklesIcon, TerminalIcon, ChromeIcon, ShieldCheckIcon } from "@/components/ui/icons";
+import { BotIcon, SparklesIcon, ChromeIcon } from "@/components/ui/icons";
 
 interface CreateWorkflowViewProps {
   onCancel: () => void;

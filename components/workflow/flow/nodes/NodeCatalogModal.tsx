@@ -1,29 +1,48 @@
 "use client";
 
 import React, { useState } from "react";
+import { trpc } from "@/lib/trpc/client";
 import type { NodeTemplate } from "../types";
 import { NODE_TEMPLATES } from "./nodeTemplates";
-import { BotIcon, SparklesIcon, CheckIcon } from "@/components/ui/icons";
+import { BotIcon, SparklesIcon } from "@/components/ui/icons";
 
 interface NodeCatalogModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSelectTemplate: (template: NodeTemplate) => void;
+  onOpenAdmin?: () => void;
 }
 
 export function NodeCatalogModal({
   isOpen,
   onClose,
   onSelectTemplate,
+  onOpenAdmin,
 }: NodeCatalogModalProps) {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
+  const { data: serverTemplates } = trpc.nodeTemplate.getAll.useQuery(undefined, {
+    enabled: isOpen,
+    staleTime: 30 * 1000,
+  });
+
+  const availableTemplates: NodeTemplate[] =
+    serverTemplates && serverTemplates.length > 0 ? (serverTemplates as NodeTemplate[]) : NODE_TEMPLATES;
+
   if (!isOpen) return null;
 
-  const categories = ["all", "Navigation", "Vision & CDP", "Action Engine", "Auth & Form", "Data Scraper", "Artifact Engine"];
+  const categories = [
+    "all",
+    "Navigation",
+    "Vision & CDP",
+    "Action Engine",
+    "Auth & Form",
+    "Data Scraper",
+    "Artifact Engine",
+  ];
 
-  const filteredTemplates = NODE_TEMPLATES.filter((tpl) => {
+  const filteredTemplates = availableTemplates.filter((tpl) => {
     const matchesSearch =
       tpl.title.toLowerCase().includes(search.toLowerCase()) ||
       tpl.description.toLowerCase().includes(search.toLowerCase()) ||
@@ -47,28 +66,49 @@ export function NodeCatalogModal({
               <BotIcon className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-zinc-900">
-                Agent Node Catalog
-              </h3>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-zinc-900">
+                  Curated Node Catalog
+                </h3>
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
+                  Admin Verified
+                </span>
+              </div>
               <p className="text-xs text-zinc-500">
-                Choose a pre-configured execution node archetype to append to the pipeline.
+                Select from admin-managed Free &amp; PRO step node archetypes.
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors cursor-pointer"
-          >
-            ✕
-          </button>
+
+          <div className="flex items-center gap-2">
+            {onOpenAdmin && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenAdmin();
+                }}
+                className="flex items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors cursor-pointer"
+                title="Open Admin Node Studio to create or customize nodes"
+              >
+                <span>⚙️ Admin Studio</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors cursor-pointer"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* Search & Category Filter */}
         <div className="flex flex-col sm:flex-row gap-2 items-center justify-between">
           <input
             type="text"
-            placeholder="Search node archetypes..."
+            placeholder="Search node templates..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full sm:w-64 rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-1.5 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none"
@@ -86,7 +126,7 @@ export function NodeCatalogModal({
                     : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
                 }`}
               >
-                {cat === "all" ? "All Archetypes" : cat}
+                {cat === "all" ? "All" : cat}
               </button>
             ))}
           </div>
@@ -96,27 +136,43 @@ export function NodeCatalogModal({
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[380px] overflow-y-auto p-1">
           {filteredTemplates.map((tpl) => (
             <div
-              key={tpl.archetype}
-              className="flex flex-col justify-between rounded-xl border border-zinc-200/80 bg-zinc-50/40 p-3.5 hover:border-zinc-300 hover:bg-white transition-all space-y-2.5"
+              key={tpl.id || tpl.title}
+              className={`flex flex-col justify-between rounded-xl border p-3.5 transition-all space-y-2.5 ${
+                tpl.isPremium
+                  ? "border-amber-200/90 bg-amber-50/20 hover:border-amber-300 hover:bg-white"
+                  : "border-zinc-200/80 bg-zinc-50/40 hover:border-zinc-300 hover:bg-white"
+              }`}
             >
               <div>
                 <div className="flex items-center justify-between gap-2 mb-1">
                   <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
                     {tpl.category}
                   </span>
-                  <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200/60">
-                    {tpl.badge}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    {tpl.isPremium ? (
+                      <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200 shadow-2xs">
+                        ★ PRO
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200">
+                        FREE
+                      </span>
+                    )}
+                    <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-mono text-zinc-600">
+                      {tpl.badge}
+                    </span>
+                  </div>
                 </div>
+
                 <h4 className="text-xs font-bold text-zinc-900">{tpl.title}</h4>
-                <p className="text-[11px] text-zinc-500 leading-relaxed mt-1">
+                <p className="text-[11px] text-zinc-500 leading-relaxed mt-1 line-clamp-2">
                   {tpl.description}
                 </p>
               </div>
 
               <div className="pt-2 border-t border-zinc-100/80 flex items-center justify-between">
                 <div className="text-[10px] text-zinc-400 font-mono">
-                  {tpl.defaultMetrics[0]?.label}: {tpl.defaultMetrics[0]?.value}
+                  {tpl.defaultMetrics?.[0] ? `${tpl.defaultMetrics[0].label}: ${tpl.defaultMetrics[0].value}` : "Ready"}
                 </div>
                 <button
                   type="button"
@@ -124,10 +180,14 @@ export function NodeCatalogModal({
                     onSelectTemplate(tpl);
                     onClose();
                   }}
-                  className="flex items-center gap-1 rounded-lg bg-zinc-900 px-2.5 py-1 text-xs font-medium text-white hover:bg-zinc-800 transition-colors cursor-pointer shadow-2xs"
+                  className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors cursor-pointer shadow-2xs ${
+                    tpl.isPremium
+                      ? "bg-amber-600 text-white hover:bg-amber-500"
+                      : "bg-zinc-900 text-white hover:bg-zinc-800"
+                  }`}
                 >
-                  <SparklesIcon className="h-3 w-3 text-emerald-400" />
-                  <span>Insert Node</span>
+                  <SparklesIcon className="h-3 w-3 text-white" />
+                  <span>{tpl.isPremium ? "Add PRO Node" : "Insert Node"}</span>
                 </button>
               </div>
             </div>

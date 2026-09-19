@@ -25,6 +25,7 @@ export interface WorkflowNodeData extends Record<string, unknown> {
   selector?: string;
   payload?: string;
   timeoutMs?: number;
+  isPremium?: boolean;
 }
 
 export type WorkflowNodeType = Node<WorkflowNodeData, "workflowStep">;
@@ -44,12 +45,14 @@ export interface WorkflowBlueprint {
 }
 
 export interface NodeTemplate {
+  id?: string;
   archetype: NodeArchetype;
   title: string;
   category: string;
   badge: string;
   description: string;
   actionSummary: string;
+  isPremium?: boolean;
   defaultMetrics: { label: string; value: string }[];
   defaultLogs: string[];
 }

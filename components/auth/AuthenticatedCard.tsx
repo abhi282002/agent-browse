@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { motion } from "motion/react";
 import { trpc } from "@/lib/trpc/client";
-import { BotIcon, ChromeIcon, ShieldCheckIcon, TerminalIcon, PlayIcon, SparklesIcon } from "@/components/ui/icons";
+import { BotIcon, ChromeIcon, ShieldCheckIcon, PlayIcon, SparklesIcon } from "@/components/ui/icons";
 
 interface AuthenticatedCardProps {
   user: {
@@ -12,6 +12,8 @@ interface AuthenticatedCardProps {
     name: string;
     email: string;
     workspaceName: string;
+    role?: string;
+    plan?: string;
   };
   onSignOut?: () => void;
 }
@@ -72,9 +74,16 @@ export function AuthenticatedCard({ user, onSignOut }: AuthenticatedCardProps) {
               <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-emerald-500" />
             </div>
             <div className="flex flex-col">
-              <span className="text-sm font-bold text-zinc-900 leading-tight">
-                {user.name}
-              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-sm font-bold text-zinc-900 leading-tight">
+                  {user.name}
+                </span>
+                {user.role === "admin" && (
+                  <span className="rounded-md border border-amber-300 bg-amber-50 px-1.5 py-0.2 text-[10px] font-bold text-amber-800">
+                    Admin
+                  </span>
+                )}
+              </div>
               <span className="text-xs text-zinc-500 font-mono truncate max-w-[190px]">
                 {user.email}
               </span>
@@ -95,9 +104,20 @@ export function AuthenticatedCard({ user, onSignOut }: AuthenticatedCardProps) {
         <div className="my-5 rounded-xl border border-zinc-200/70 bg-zinc-50/70 p-3.5 space-y-2.5">
           <div className="flex items-center justify-between text-xs">
             <span className="font-semibold text-zinc-700">Workspace</span>
-            <span className="rounded bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-800 border border-zinc-200/70">
-              {user.workspaceName}
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="rounded bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-800 border border-zinc-200/70">
+                {user.workspaceName}
+              </span>
+              <span
+                className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
+                  user.plan === "pro"
+                    ? "bg-amber-100 text-amber-900 border border-amber-300"
+                    : "bg-zinc-100 text-zinc-700 border border-zinc-200"
+                }`}
+              >
+                {user.plan ?? "free"}
+              </span>
+            </div>
           </div>
 
           <div className="flex items-center justify-between text-xs text-zinc-600">

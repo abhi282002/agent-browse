@@ -3,7 +3,7 @@
 import React, { memo } from "react";
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import type { WorkflowNodeType } from "./types";
-import { BotIcon, CheckIcon, TerminalIcon } from "@/components/ui/icons";
+import { CheckIcon, TerminalIcon } from "@/components/ui/icons";
 
 function WorkflowNodeComponent({ data, selected }: NodeProps<WorkflowNodeType>) {
   const isRunning = data.status === "running";
@@ -47,17 +47,24 @@ function WorkflowNodeComponent({ data, selected }: NodeProps<WorkflowNodeType>) 
           </span>
         </div>
 
-        <span
-          className={`rounded-full px-2 py-0.5 text-[10px] font-semibold border ${
-            isRunning
-              ? "bg-emerald-50 text-emerald-700 border-emerald-200/80"
-              : isCompleted
-              ? "bg-zinc-100 text-zinc-600 border-zinc-200"
-              : "bg-zinc-50 text-zinc-400 border-zinc-200/60"
-          }`}
-        >
-          {isRunning ? "Running" : isCompleted ? "Done" : "Pending"}
-        </span>
+        <div className="flex items-center gap-1">
+          {data.isPremium && (
+            <span className="rounded-full bg-amber-50 px-1.5 py-0.5 text-[9px] font-bold text-amber-800 border border-amber-200">
+              PRO
+            </span>
+          )}
+          <span
+            className={`rounded-full px-2 py-0.5 text-[10px] font-semibold border ${
+              isRunning
+                ? "bg-emerald-50 text-emerald-700 border-emerald-200/80"
+                : isCompleted
+                ? "bg-zinc-100 text-zinc-600 border-zinc-200"
+                : "bg-zinc-50 text-zinc-400 border-zinc-200/60"
+            }`}
+          >
+            {isRunning ? "Running" : isCompleted ? "Done" : "Pending"}
+          </span>
+        </div>
       </div>
 
       {/* Title */}

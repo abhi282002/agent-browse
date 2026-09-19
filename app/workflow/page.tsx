@@ -1,7 +1,7 @@
 import React from "react";
 import Link from "next/link";
 import { WorkflowDashboard } from "@/components/workflow/flow/WorkflowDashboard";
-import { BotIcon, ArrowRightIcon, TerminalIcon, GitHubIcon } from "@/components/ui/icons";
+import { BotIcon, GitHubIcon } from "@/components/ui/icons";
 
 export const metadata = {
   title: "Workflow Studio — AgentBrowse",

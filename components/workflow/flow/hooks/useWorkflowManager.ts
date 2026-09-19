@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback } from "react";
 import type { Edge } from "@xyflow/react";
 import { trpc } from "@/lib/trpc/client";
 import type {
@@ -12,7 +12,7 @@ import type {
 import { DEFAULT_WORKFLOWS, createWorkflowFromBlueprint } from "../defaultFlows";
 
 export function useWorkflowManager() {
-  const [workflows, setWorkflows] = useState<WorkflowBlueprint[]>(DEFAULT_WORKFLOWS);
+  const [localWorkflows, setLocalWorkflows] = useState<WorkflowBlueprint[] | null>(null);
   const [activeWorkflowId, setActiveWorkflowId] = useState<string>(DEFAULT_WORKFLOWS[0].id);
   const [selectedNode, setSelectedNode] = useState<WorkflowNodeType | null>(null);
   const [isRunning, setIsRunning] = useState(false);
@@ -26,10 +26,12 @@ export function useWorkflowManager() {
 
   const createMutation = trpc.workflow.create.useMutation({
     onSuccess: (savedWf) => {
-      // If server returned a created workflow, sync its assigned ID
-      setWorkflows((prev) =>
-        prev.map((w) => (w.name === savedWf.name ? (savedWf as unknown as WorkflowBlueprint) : w))
-      );
+      setLocalWorkflows((prev) => {
+        const base = prev ?? (serverWorkflows as unknown as WorkflowBlueprint[]) ?? DEFAULT_WORKFLOWS;
+        return base.map((w) =>
+          w.name === savedWf.name ? (savedWf as unknown as WorkflowBlueprint) : w
+        );
+      });
       utils.workflow.getAll.invalidate();
     },
   });
@@ -42,16 +44,12 @@ export function useWorkflowManager() {
     },
   });
 
-  // Sync server workflows when fetched from database
-  useEffect(() => {
-    if (serverWorkflows && serverWorkflows.length > 0) {
-      setWorkflows(serverWorkflows as unknown as WorkflowBlueprint[]);
-      // Ensure activeWorkflowId exists in loaded workflows
-      if (!serverWorkflows.some((w) => w.id === activeWorkflowId)) {
-        setActiveWorkflowId(serverWorkflows[0].id);
-      }
-    }
-  }, [serverWorkflows]);
+  // Derived workflows: uses local state if modified, else server data, else default
+  const workflows: WorkflowBlueprint[] =
+    localWorkflows ??
+    ((serverWorkflows && serverWorkflows.length > 0)
+      ? (serverWorkflows as unknown as WorkflowBlueprint[])
+      : DEFAULT_WORKFLOWS);
 
   const activeWorkflow =
     workflows.find((w) => w.id === activeWorkflowId) || workflows[0] || DEFAULT_WORKFLOWS[0];
@@ -74,12 +72,13 @@ export function useWorkflowManager() {
       newWf.aiModel = params.aiModel || "Gemini 2.5 Pro Vision";
       newWf.sandboxEnv = params.sandboxEnv || "Chromium 128 (CDP Sandbox)";
 
-      // Optimistic update
-      setWorkflows((prev) => [newWf, ...prev]);
+      setLocalWorkflows((prev) => {
+        const base = prev ?? (serverWorkflows as unknown as WorkflowBlueprint[]) ?? DEFAULT_WORKFLOWS;
+        return [newWf, ...base];
+      });
       setActiveWorkflowId(newWf.id);
       setSelectedNode(null);
 
-      // Sync to backend database
       createMutation.mutate({
         name: newWf.name,
         description: newWf.description,
@@ -94,7 +93,18 @@ export function useWorkflowManager() {
 
       return newWf;
     },
-    [createMutation]
+    [createMutation, serverWorkflows]
+  );
+
+  const deleteWorkflow = useCallback(
+    (id: string) => {
+      setLocalWorkflows((prev) => {
+        const base = prev ?? (serverWorkflows as unknown as WorkflowBlueprint[]) ?? DEFAULT_WORKFLOWS;
+        return base.filter((w) => w.id !== id);
+      });
+      deleteMutation.mutate({ id });
+    },
+    [deleteMutation, serverWorkflows]
   );
 
   const addNode = useCallback(
@@ -124,6 +134,7 @@ export function useWorkflowManager() {
           selector: customData?.selector,
           payload: customData?.payload,
           timeoutMs: customData?.timeoutMs || 5000,
+          isPremium: template.isPremium ?? false,
         },
       };
 
@@ -140,36 +151,36 @@ export function useWorkflowManager() {
 
       const updatedNodes = [...activeWorkflow.nodes, newNode];
 
-      // Optimistic update
-      setWorkflows((prev) =>
-        prev.map((wf) => {
+      setLocalWorkflows((prev) => {
+        const base = prev ?? (serverWorkflows as unknown as WorkflowBlueprint[]) ?? DEFAULT_WORKFLOWS;
+        return base.map((wf) => {
           if (wf.id !== activeWorkflow.id) return wf;
           return {
             ...wf,
             nodes: updatedNodes,
             edges: newEdges,
           };
-        })
-      );
+        });
+      });
 
       setSelectedNode(newNode);
 
-      // Persist node & edge changes to backend database
       updateMutation.mutate({
         id: activeWorkflow.id,
         nodes: updatedNodes,
         edges: newEdges,
       });
     },
-    [activeWorkflow, updateMutation]
+    [activeWorkflow, updateMutation, serverWorkflows]
   );
 
   const updateNode = useCallback(
     (nodeId: string, updatedData: Partial<WorkflowNodeData>) => {
       let updatedNodes: WorkflowNodeType[] = [];
 
-      setWorkflows((prev) =>
-        prev.map((wf) => {
+      setLocalWorkflows((prev) => {
+        const base = prev ?? (serverWorkflows as unknown as WorkflowBlueprint[]) ?? DEFAULT_WORKFLOWS;
+        return base.map((wf) => {
           if (wf.id !== activeWorkflow.id) return wf;
 
           updatedNodes = wf.nodes.map((node) => {
@@ -186,16 +197,15 @@ export function useWorkflowManager() {
           });
 
           return { ...wf, nodes: updatedNodes };
-        })
-      );
+        });
+      });
 
-      // Persist node modifications to backend
       updateMutation.mutate({
         id: activeWorkflow.id,
         nodes: updatedNodes,
       });
     },
-    [activeWorkflow.id, updateMutation]
+    [activeWorkflow.id, updateMutation, serverWorkflows]
   );
 
   const deleteNode = useCallback(
@@ -203,8 +213,9 @@ export function useWorkflowManager() {
       let updatedNodes: WorkflowNodeType[] = [];
       let updatedEdges: Edge[] = [];
 
-      setWorkflows((prev) =>
-        prev.map((wf) => {
+      setLocalWorkflows((prev) => {
+        const base = prev ?? (serverWorkflows as unknown as WorkflowBlueprint[]) ?? DEFAULT_WORKFLOWS;
+        return base.map((wf) => {
           if (wf.id !== activeWorkflow.id) return wf;
 
           updatedNodes = wf.nodes
@@ -223,17 +234,16 @@ export function useWorkflowManager() {
 
           setSelectedNode(null);
           return { ...wf, nodes: updatedNodes, edges: updatedEdges };
-        })
-      );
+        });
+      });
 
-      // Persist node deletion to backend
       updateMutation.mutate({
         id: activeWorkflow.id,
         nodes: updatedNodes,
         edges: updatedEdges,
       });
     },
-    [activeWorkflow.id, updateMutation]
+    [activeWorkflow.id, updateMutation, serverWorkflows]
   );
 
   const runPipeline = useCallback(() => {
@@ -250,8 +260,9 @@ export function useWorkflowManager() {
         return;
       }
 
-      setWorkflows((prev) =>
-        prev.map((wf) => {
+      setLocalWorkflows((prev) => {
+        const base = prev ?? (serverWorkflows as unknown as WorkflowBlueprint[]) ?? DEFAULT_WORKFLOWS;
+        return base.map((wf) => {
           if (wf.id !== activeWorkflow.id) return wf;
 
           const updatedNodes = wf.nodes.map((node, i) => {
@@ -274,13 +285,13 @@ export function useWorkflowManager() {
           });
 
           return { ...wf, nodes: updatedNodes };
-        })
-      );
+        });
+      });
 
       setSelectedNode(activeWorkflow.nodes[currentIdx] || null);
       currentIdx++;
     }, 1100);
-  }, [isRunning, activeWorkflow]);
+  }, [isRunning, activeWorkflow, serverWorkflows]);
 
   return {
     workflows,
@@ -288,9 +299,10 @@ export function useWorkflowManager() {
     activeWorkflowId,
     selectedNode,
     isRunning,
-    isSyncing: createMutation.isPending || updateMutation.isPending,
+    isSyncing: createMutation.isPending || updateMutation.isPending || deleteMutation.isPending,
     selectWorkflow,
     createWorkflow,
+    deleteWorkflow,
     addNode,
     updateNode,
     deleteNode,

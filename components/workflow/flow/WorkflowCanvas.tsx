@@ -13,6 +13,7 @@ import {
   type OnConnect,
   type NodeTypes,
   type Node,
+  type Edge,
   type DefaultEdgeOptions,
   type FitViewOptions,
 } from "@xyflow/react";
@@ -37,9 +38,8 @@ const FIT_VIEW_OPTIONS: FitViewOptions = {
 interface WorkflowCanvasProps {
   workflowId: string;
   initialNodes: WorkflowNodeType[];
-  initialEdges: any[];
+  initialEdges: Edge[];
   onSelectNode: (node: WorkflowNodeType | null) => void;
-  selectedNodeId?: string;
 }
 
 export function WorkflowCanvas({
@@ -47,7 +47,6 @@ export function WorkflowCanvas({
   initialNodes,
   initialEdges,
   onSelectNode,
-  selectedNodeId,
 }: WorkflowCanvasProps) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -55,12 +54,12 @@ export function WorkflowCanvas({
   // Sync nodes only when initialNodes length or workflow changes
   React.useEffect(() => {
     setNodes(initialNodes);
-  }, [workflowId, initialNodes.length, setNodes]);
+  }, [workflowId, initialNodes, setNodes]);
 
   // Sync edge changes if new edge added
   React.useEffect(() => {
     setEdges(initialEdges);
-  }, [workflowId, initialEdges.length, setEdges]);
+  }, [workflowId, initialEdges, setEdges]);
 
   // Handle connection
   const onConnect: OnConnect = useCallback(

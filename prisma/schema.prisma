@@ -13,6 +13,8 @@ model User {
   email         String    @unique
   passwordHash  String
   workspaceName String?   @default("Personal Workspace")
+  role          String    @default("customer")
+  plan          String    @default("free")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
@@ -49,4 +51,19 @@ model Workflow {
   user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model NodeTemplate {
+  id             String   @id @default(cuid())
+  title          String
+  category       String
+  badge          String
+  archetype      String   @default("action")
+  description    String
+  actionSummary  String
+  isPremium      Boolean  @default(false)
+  defaultMetrics Json
+  defaultLogs    Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }

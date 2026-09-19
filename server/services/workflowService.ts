@@ -1,5 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
+import type { Edge } from "@xyflow/react";
+import type { WorkflowNodeType } from "@/components/workflow/flow/types";
 import { DEFAULT_WORKFLOWS } from "@/components/workflow/flow/defaultFlows";
 
 export interface CreateWorkflowInput {
@@ -79,8 +81,8 @@ export class WorkflowService {
       aiModel: wf.aiModel || "Gemini 2.5 Pro Vision",
       sandboxEnv: wf.sandboxEnv || "Chromium 128 (CDP Protocol)",
       createdAt: wf.createdAt.toISOString(),
-      nodes: wf.nodes as any[],
-      edges: wf.edges as any[],
+      nodes: wf.nodes as unknown as WorkflowNodeType[],
+      edges: wf.edges as unknown as Edge[],
     }));
   }
 
@@ -106,8 +108,8 @@ export class WorkflowService {
       aiModel: wf.aiModel || "Gemini 2.5 Pro Vision",
       sandboxEnv: wf.sandboxEnv || "Chromium 128 (CDP Protocol)",
       createdAt: wf.createdAt.toISOString(),
-      nodes: wf.nodes as any[],
-      edges: wf.edges as any[],
+      nodes: wf.nodes as unknown as WorkflowNodeType[],
+      edges: wf.edges as unknown as Edge[],
     };
   }
 
@@ -140,8 +142,8 @@ export class WorkflowService {
       aiModel: wf.aiModel || "Gemini 2.5 Pro Vision",
       sandboxEnv: wf.sandboxEnv || "Chromium 128 (CDP Protocol)",
       createdAt: wf.createdAt.toISOString(),
-      nodes: wf.nodes as any[],
-      edges: wf.edges as any[],
+      nodes: wf.nodes as unknown as WorkflowNodeType[],
+      edges: wf.edges as unknown as Edge[],
     };
   }
 
@@ -149,7 +151,6 @@ export class WorkflowService {
    * Update workflow and its node/edge graph
    */
   static async update(id: string, input: UpdateWorkflowInput, userId?: string) {
-    // If authenticated, ensure user has ownership or is public
     const existing = await prisma.workflow.findUnique({
       where: { id },
     });
@@ -188,8 +189,8 @@ export class WorkflowService {
       aiModel: updated.aiModel || "Gemini 2.5 Pro Vision",
       sandboxEnv: updated.sandboxEnv || "Chromium 128 (CDP Protocol)",
       createdAt: updated.createdAt.toISOString(),
-      nodes: updated.nodes as any[],
-      edges: updated.edges as any[],
+      nodes: updated.nodes as unknown as WorkflowNodeType[],
+      edges: updated.edges as unknown as Edge[],
     };
   }
 
