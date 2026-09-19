@@ -1,7 +1,8 @@
 import React from "react";
+import Link from "next/link";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { WorkflowShowcase } from "@/components/workflow/WorkflowShowcase";
-import { BotIcon, ShieldCheckIcon, TerminalIcon, ExternalLinkIcon, GitHubIcon } from "@/components/ui/icons";
+import { BotIcon, ShieldCheckIcon, TerminalIcon, ExternalLinkIcon, GitHubIcon, SparklesIcon } from "@/components/ui/icons";
 
 export default function Home() {
   return (
@@ -39,6 +40,14 @@ export default function Home() {
 
           {/* Right Links */}
           <div className="flex items-center gap-3 text-xs font-medium">
+            <Link
+              href="/workflow"
+              className="flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 transition-colors shadow-2xs"
+            >
+              <SparklesIcon className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Workflow Studio</span>
+            </Link>
+            <div className="h-4 w-px bg-zinc-200 hidden sm:block" />
             <a
               href="https://github.com/abhi282002/agent-browse"
               target="_blank"
@@ -48,7 +57,6 @@ export default function Home() {
               <GitHubIcon className="h-3.5 w-3.5" />
               <span>GitHub</span>
             </a>
-            <div className="h-4 w-px bg-zinc-200 hidden sm:block" />
             <a
               href="#docs"
               className="flex items-center gap-1 text-zinc-600 hover:text-zinc-900 transition-colors"

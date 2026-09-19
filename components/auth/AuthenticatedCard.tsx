@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState } from "react";
+import Link from "next/link";
 import { motion } from "motion/react";
 import { trpc } from "@/lib/trpc/client";
-import { BotIcon, ChromeIcon, ShieldCheckIcon, TerminalIcon, PlayIcon } from "@/components/ui/icons";
+import { BotIcon, ChromeIcon, ShieldCheckIcon, TerminalIcon, PlayIcon, SparklesIcon } from "@/components/ui/icons";
 
 interface AuthenticatedCardProps {
   user: {
@@ -150,13 +151,13 @@ export function AuthenticatedCard({ user, onSignOut }: AuthenticatedCardProps) {
             )}
           </button>
 
-          <a
-            href="#task-terminal"
+          <Link
+            href="/workflow"
             className="flex h-10 w-full items-center justify-center gap-2 rounded-xl border border-zinc-200 bg-white font-medium text-xs text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-all cursor-pointer"
           >
-            <TerminalIcon className="h-3.5 w-3.5 text-zinc-500" />
-            <span>Open Autonomous Task Terminal</span>
-          </a>
+            <SparklesIcon className="h-3.5 w-3.5 text-emerald-600" />
+            <span>Open Interactive Workflow Studio</span>
+          </Link>
         </div>
       </div>
 
