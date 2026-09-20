@@ -5,6 +5,7 @@ export interface TriggerWorkflowPayload {
   workflowId: string;
   workflowName: string;
   targetUrl: string;
+  aiModel?: string;
   nodes: Array<{
     id: string;
     data: {

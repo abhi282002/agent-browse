@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
 import type { WorkflowBlueprint } from "../types";
 import type { WorkflowExecutionResult } from "@/server/services/browserbaseService";
-import { PlayIcon, SparklesIcon, ChromeIcon } from "@/components/ui/icons";
+import { PlayIcon, SparklesIcon, ChromeIcon, BotIcon } from "@/components/ui/icons";
 
 interface WorkflowExecutionPanelProps {
   workflow: WorkflowBlueprint;
@@ -47,6 +47,7 @@ export function WorkflowExecutionPanel({
       workflowId: workflow.id,
       workflowName: workflow.name,
       targetUrl: workflow.targetUrl,
+      aiModel: workflow.aiModel,
       nodes: workflow.nodes.map((node) => ({
         id: node.id,
         data: {
@@ -117,6 +118,23 @@ export function WorkflowExecutionPanel({
             <span className={integrations?.triggerDev.isConfigured ? "text-emerald-700" : "text-amber-800"}>
               {integrations?.triggerDev.isConfigured ? "V3 Orchestrator" : "Direct Runner"}
             </span>
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span className="text-zinc-500 font-medium flex items-center gap-1">
+            <BotIcon className="h-3 w-3 text-indigo-500" />
+            <span>Autonomous Agent</span>
+          </span>
+          <span className="flex items-center gap-1 font-semibold text-xs text-indigo-700">
+            <span
+              className={`h-1.5 w-1.5 rounded-full ${
+                integrations?.agents?.gemini.isConfigured || integrations?.agents?.grok.isConfigured
+                  ? "bg-indigo-500 animate-pulse"
+                  : "bg-zinc-400"
+              }`}
+            />
+            <span>{workflow.aiModel || "Gemini 2.5 Pro"}</span>
           </span>
         </div>
       </div>

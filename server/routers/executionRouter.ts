@@ -2,15 +2,19 @@ import { z } from "zod";
 import { router, publicProcedure } from "@/server/trpc/trpc";
 import { BrowserbaseService } from "@/server/services/browserbaseService";
 import { TriggerDevService } from "@/server/services/triggerDevService";
+import { AgentService } from "@/server/services/agentService";
+import { EmailService } from "@/server/services/emailService";
 
 export const executionRouter = router({
   /**
-   * Get configuration status of Browserbase & Trigger.dev integrations
+   * Get configuration status of Browserbase, Trigger.dev, AI Agent & Email integrations
    */
   getIntegrationsStatus: publicProcedure.query(() => {
     return {
       browserbase: BrowserbaseService.getStatus(),
       triggerDev: TriggerDevService.getStatus(),
+      agents: AgentService.getStatus(),
+      email: EmailService.getStatus(),
     };
   }),
 
@@ -38,6 +42,7 @@ export const executionRouter = router({
         workflowId: z.string(),
         workflowName: z.string(),
         targetUrl: z.string(),
+        aiModel: z.string().optional(),
         nodes: z.array(
           z.object({
             id: z.string(),

@@ -1,3 +1,6 @@
+import { executeNode } from "./nodeRegistry";
+import type { Stagehand, StagehandBrowser } from "@browserbasehq/stagehand";
+
 async function getStagehandModule() {
   return await import("@browserbasehq/stagehand");
 }
@@ -109,6 +112,7 @@ export class BrowserbaseService {
     workflowId: string;
     workflowName: string;
     targetUrl: string;
+    aiModel?: string;
     nodes: Array<{
       id: string;
       data: {
@@ -159,10 +163,8 @@ export class BrowserbaseService {
     }
 
     // Live Execution on Browserbase Cloud via Stagehand
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let browser: any;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let stagehand: any;
+    let browser: StagehandBrowser | undefined;
+    let stagehand: Stagehand | undefined;
 
     try {
       const { browserbase, Stagehand } = await getStagehandModule();
@@ -190,43 +192,25 @@ export class BrowserbaseService {
         const logs: string[] = [`Starting step: ${node.data.title}`];
 
         try {
-          // If custom URL on node and different from targetUrl, navigate
-          if (node.data.url && node.data.url !== payload.targetUrl && node.data.url.startsWith("http")) {
-            await page.goto(node.data.url);
-            logs.push(`Navigated to ${node.data.url}`);
-          }
+          // Execute node using the modular Node Registry
+          const nodeExecution = await executeNode(node, {
+            stagehand,
+            page,
+            targetUrl: payload.targetUrl,
+            aiModel: payload.aiModel,
+          });
 
-          // Execute with Stagehand based on archetype
-          if (node.data.archetype === "extraction") {
-            const extractInstruction = node.data.actionSummary || node.data.description || "Extract page text";
-            logs.push(`Executing Stagehand extract: "${extractInstruction}"`);
-            const extractRes = await stagehand.extract(extractInstruction);
-            logs.push("Extraction successful");
-            stepResults.push({
-              stepId: node.id,
-              stepNumber: node.data.stepNumber,
-              title: node.data.title,
-              status: "completed",
-              durationMs: Date.now() - stepStart,
-              logs,
-              output: extractRes.data as Record<string, unknown>,
-            });
-          } else {
-            // Standard action step via stagehand.act
-            const actInstruction = node.data.actionSummary || node.data.title;
-            logs.push(`Executing Stagehand action: "${actInstruction}"`);
-            await stagehand.act(actInstruction);
-            logs.push("Action executed cleanly");
+          logs.push(...nodeExecution.logs);
 
-            stepResults.push({
-              stepId: node.id,
-              stepNumber: node.data.stepNumber,
-              title: node.data.title,
-              status: "completed",
-              durationMs: Date.now() - stepStart,
-              logs,
-            });
-          }
+          stepResults.push({
+            stepId: node.id,
+            stepNumber: node.data.stepNumber,
+            title: node.data.title,
+            status: "completed",
+            durationMs: Date.now() - stepStart,
+            logs,
+            output: nodeExecution.output,
+          });
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : String(err);
           logs.push(`Step warning/error: ${errMsg}`);
@@ -243,7 +227,7 @@ export class BrowserbaseService {
         }
       }
 
-      const sessionId = (browser as unknown as { id?: string; sessionId?: string }).sessionId ||
+      const sessionId = browser?.sessionId ||
         `bb-${Date.now().toString(36)}`;
 
       return {

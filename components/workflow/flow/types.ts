@@ -8,7 +8,9 @@ export type NodeArchetype =
   | "action"
   | "form"
   | "extraction"
-  | "webhook";
+  | "webhook"
+  | "summarization"
+  | "email";
 
 export interface WorkflowNodeData extends Record<string, unknown> {
   stepNumber: number;

@@ -51,9 +51,11 @@ const BLUEPRINTS = [
 ];
 
 const AI_MODELS = [
-  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro Vision", latency: "High Accuracy • Multimodal DOM" },
-  { id: "claude-3.7", name: "Claude 3.7 Sonnet", latency: "High Precision • Computer Use CDP" },
-  { id: "gpt-4o", name: "GPT-4o Vision", latency: "Low Latency • General Tools" },
+  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro Vision", latency: "Google DeepMind • Multimodal DOM" },
+  { id: "grok-2-vision", name: "Grok 2 Vision (xAI)", latency: "xAI • Deep Web Reasoning" },
+  { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", latency: "Google • Low Latency Realtime" },
+  { id: "claude-3.7", name: "Claude 3.7 Sonnet", latency: "Anthropic • Computer Use CDP" },
+  { id: "gpt-4o", name: "GPT-4o Vision", latency: "OpenAI • General Tools" },
 ];
 
 const SANDBOX_PROFILES = [

@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
-import { NODE_TEMPLATES } from "@/components/workflow/flow/nodes/nodeTemplates";
 import type { NodeTemplate, NodeArchetype } from "@/components/workflow/flow/types";
 
 export interface CreateNodeTemplateInput {
@@ -29,39 +28,12 @@ export interface UpdateNodeTemplateInput {
 
 export class NodeTemplateService {
   /**
-   * List all node templates. Auto-seeds default archetypes if table is empty.
+   * List all node templates from the database
    */
   static async list(): Promise<NodeTemplate[]> {
-    let templates = await prisma.nodeTemplate.findMany({
+    const templates = await prisma.nodeTemplate.findMany({
       orderBy: { createdAt: "asc" },
     });
-
-    // Auto-seed default templates with Free vs Premium designations if empty
-    if (templates.length === 0) {
-      for (const tpl of NODE_TEMPLATES) {
-        // Mark Form Submission & Extraction as Premium by default
-        const isPremium =
-          tpl.archetype === "form" || tpl.archetype === "extraction" || tpl.badge === "Perception";
-
-        await prisma.nodeTemplate.create({
-          data: {
-            title: tpl.title,
-            category: tpl.category,
-            badge: tpl.badge,
-            archetype: tpl.archetype,
-            description: tpl.description,
-            actionSummary: tpl.actionSummary,
-            isPremium,
-            defaultMetrics: tpl.defaultMetrics as unknown as Prisma.InputJsonValue,
-            defaultLogs: tpl.defaultLogs as unknown as Prisma.InputJsonValue,
-          },
-        });
-      }
-
-      templates = await prisma.nodeTemplate.findMany({
-        orderBy: { createdAt: "asc" },
-      });
-    }
 
     return templates.map((t) => ({
       id: t.id,
