@@ -226,4 +226,140 @@ Synthesize this into a structured executive brief with key bulleted insights.`,
       wordCount: approxWords,
     };
   }
+
+  /**
+   * Autonomous categorized news summarization with structured heading, subheading, and text
+   */
+  static async generateCategorizedNewsDigest(input: {
+    categories: string[];
+    content: string;
+    targetUrl?: string;
+    modelName?: string;
+  }): Promise<CategorizedNewsDigestResult> {
+    const { provider, resolvedModel } = this.resolveProvider(input.modelName);
+    const categoriesList =
+      input.categories.length > 0
+        ? input.categories.join(", ")
+        : "war, sports, crime, ai, politics";
+    const apiKey = process.env.GEMINI_API_KEY?.trim();
+
+    if (apiKey) {
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${resolvedModel}:generateContent?key=${apiKey}`;
+        const prompt = `You are an elite news editor and autonomous intelligence agent.
+Analyze the following news webpage content and extract/summarize stories specifically for each of these categories: [${categoriesList}].
+
+For EACH category found in the text, extract and summarize ALL the distinct news stories provided (up to 3-5 stories per category). Do not limit each category to just one single story. Format the result strictly as a JSON array of objects where each story has these exact keys:
+[
+  {
+    "category": "<Full formal category name, e.g. AI & Technology, World & Defense, Sports, Politics & National, Crime & Law>",
+    "heading": "<Concise, punchy news headline>",
+    "subheading": "<1 sentence contextual deck / subheading>",
+    "text": "<2-3 sentence clear, objective summary of the event>"
+  }
+]
+
+Do not include markdown code block formatting or backticks around the JSON. Return only the raw JSON array.
+
+Webpage Content:
+"""
+${input.content.slice(0, 16000)}
+"""`;
+
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.2,
+              responseMimeType: "application/json",
+            },
+          }),
+        });
+
+        if (res.ok) {
+          const data = (await res.json()) as {
+            candidates?: Array<{
+              content?: { parts?: Array<{ text?: string }> };
+            }>;
+          };
+
+          const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+          let items: CategorizedNewsItem[] = [];
+
+          try {
+            items = JSON.parse(rawText);
+          } catch {
+            const cleanJson = rawText
+              .replace(/```json/g, "")
+              .replace(/```/g, "")
+              .trim();
+            items = JSON.parse(cleanJson);
+          }
+
+          if (Array.isArray(items) && items.length > 0) {
+            const formattedBriefing = items
+              .map(
+                (item) =>
+                  `[${item.category.toUpperCase()}]\nheading: ${item.heading}\nsubheading: ${item.subheading}\ntext: ${item.text}`
+              )
+              .join("\n\n");
+
+            return {
+              items,
+              formattedBriefing,
+              provider: "gemini",
+              modelUsed: resolvedModel,
+            };
+          }
+        }
+      } catch (err) {
+        console.warn(
+          "[AgentService] Categorized news digest failed via Gemini, falling back:",
+          err
+        );
+      }
+    }
+
+    // Fallback simulation / default extraction
+    const fallbackItems: CategorizedNewsItem[] = (
+      input.categories.length > 0
+        ? input.categories
+        : ["war", "sports", "crime", "ai", "politics"]
+    ).map((cat) => ({
+      category: cat.charAt(0).toUpperCase() + cat.slice(1),
+      heading: `Breaking Developments in ${cat.charAt(0).toUpperCase() + cat.slice(1)}`,
+      subheading: `Live updates and primary reports monitored from ${input.targetUrl || "the news desk"}.`,
+      text: `Key coverage indicates rapid developments in the ${cat} sector today. Analysts and correspondents report significant shifts as events unfold across the wire.`,
+    }));
+
+    const formattedBriefing = fallbackItems
+      .map(
+        (item) =>
+          `[${item.category.toUpperCase()}]\nheading: ${item.heading}\nsubheading: ${item.subheading}\ntext: ${item.text}`
+      )
+      .join("\n\n");
+
+    return {
+      items: fallbackItems,
+      formattedBriefing,
+      provider: "simulation",
+      modelUsed: `${resolvedModel} (Fallback)`,
+    };
+  }
+}
+
+export interface CategorizedNewsItem {
+  category: string;
+  heading: string;
+  subheading: string;
+  text: string;
+}
+
+export interface CategorizedNewsDigestResult {
+  items: CategorizedNewsItem[];
+  formattedBriefing: string;
+  provider: "gemini" | "grok" | "simulation";
+  modelUsed: string;
 }

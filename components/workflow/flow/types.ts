@@ -10,6 +10,8 @@ export type NodeArchetype =
   | "extraction"
   | "webhook"
   | "summarization"
+  | "news_gather"
+  | "news_extraction"
   | "news_summary"
   | "email";
 

@@ -141,6 +141,8 @@ function NodeConfigDrawerContent({
               <option value="extraction">Extraction (Data &amp; JSON Scraper)</option>
               <option value="webhook">Webhook (Artifacts &amp; Export)</option>
               <option value="summarization">AI Summarization (Gemini &amp; Grok)</option>
+              <option value="news_gather">Browser News Collector (Autonomous Tabs &amp; Headlines)</option>
+              <option value="news_summary">News Intelligence (Categorized Briefing)</option>
               <option value="email">Email Notification (Resend)</option>
             </select>
           </div>

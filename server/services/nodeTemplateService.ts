@@ -31,9 +31,72 @@ export class NodeTemplateService {
    * List all node templates from the database
    */
   static async list(): Promise<NodeTemplate[]> {
-    const templates = await prisma.nodeTemplate.findMany({
+    let templates = await prisma.nodeTemplate.findMany({
       orderBy: { createdAt: "asc" },
     });
+
+    // Ensure pre-built Categorized News Summarizer is available in catalog
+    const hasNewsSummary = templates.some((t) => t.archetype === "news_summary");
+    if (!hasNewsSummary) {
+      try {
+        const newsSummaryTpl = await prisma.nodeTemplate.create({
+          data: {
+            title: "Categorized News Summarizer",
+            category: "AI Intelligence",
+            badge: "AI Agent",
+            archetype: "news_summary",
+            description:
+              "Consumes gathered news stories and synthesizes structured [heading, subheading, text] briefings via Gemini.",
+            actionSummary:
+              "Categorize and summarize news for: war, sports, crime, ai, politics",
+            isPremium: false,
+            defaultMetrics: [
+              { label: "Format", value: "Heading/Deck/Text" },
+              { label: "Topics", value: "5 Categories" },
+            ],
+            defaultLogs: [
+              "Initialized News Intelligence Agent",
+              "Synthesized structured briefing",
+            ],
+          },
+        });
+        templates.push(newsSummaryTpl);
+      } catch {
+        // Continue gracefully if concurrent creation happened
+      }
+    }
+
+    // Ensure pre-built Browser News Collector is available in catalog
+    const hasNewsGather = templates.some((t) => t.archetype === "news_gather");
+    if (!hasNewsGather) {
+      try {
+        const newsGatherTpl = await prisma.nodeTemplate.create({
+          data: {
+            title: "Browser News Collector",
+            category: "Data Extraction",
+            badge: "Browser Agent",
+            archetype: "news_gather",
+            description:
+              "Autonomously discovers and navigates category tabs (World, Sports, Crime, AI, Politics) to harvest live breaking headlines.",
+            actionSummary:
+              "Harvest live news stories across categories via autonomous browser agent",
+            isPremium: false,
+            defaultMetrics: [
+              { label: "Harvest", value: "5 Stories / Category" },
+              { label: "Extraction", value: "Universal Tags" },
+            ],
+            defaultLogs: [
+              "Browser News Harvester initialized",
+              "Scanned navigation menu for category section URLs",
+              "Harvested live stories across category sections",
+            ],
+          },
+        });
+        templates.push(newsGatherTpl);
+      } catch {
+        // Continue gracefully if concurrent creation happened
+      }
+    }
 
     return templates.map((t) => ({
       id: t.id,
