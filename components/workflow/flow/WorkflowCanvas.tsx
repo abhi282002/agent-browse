@@ -18,6 +18,7 @@ import {
   type FitViewOptions,
   type ReactFlowInstance,
   type EdgeChange,
+  applyEdgeChanges,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { WorkflowNode } from "./WorkflowNode";
@@ -82,20 +83,18 @@ export function WorkflowCanvas({
   // Handle connection
   const onConnect: OnConnect = useCallback(
     (params) => {
-      setEdges((eds) => {
-        const nextEdges = addEdge(
-          {
-            ...params,
-            animated: true,
-            style: { stroke: "#10b981", strokeWidth: 2 },
-          },
-          eds
-        );
-        onGraphChange?.(nodes as WorkflowNodeType[], nextEdges);
-        return nextEdges;
-      });
+      const nextEdges = addEdge(
+        {
+          ...params,
+          animated: true,
+          style: { stroke: "#10b981", strokeWidth: 2 },
+        },
+        edges
+      );
+      setEdges(nextEdges);
+      onGraphChange?.(nodes as WorkflowNodeType[], nextEdges);
     },
-    [nodes, onGraphChange, setEdges]
+    [edges, nodes, onGraphChange, setEdges]
   );
 
   // Handle node drag stop - notifies parent of new node positions
@@ -109,15 +108,11 @@ export function WorkflowCanvas({
       onEdgesChange(changes);
       const hasRemoval = changes.some((c) => c.type === "remove");
       if (hasRemoval) {
-        setTimeout(() => {
-          setEdges((latestEdges) => {
-            onGraphChange?.(nodes as WorkflowNodeType[], latestEdges);
-            return latestEdges;
-          });
-        }, 0);
+        const nextEdges = applyEdgeChanges(changes, edges);
+        onGraphChange?.(nodes as WorkflowNodeType[], nextEdges);
       }
     },
-    [nodes, onEdgesChange, onGraphChange, setEdges]
+    [nodes, edges, onEdgesChange, onGraphChange]
   );
 
   // HTML5 Drag and Drop handlers from NodePalette

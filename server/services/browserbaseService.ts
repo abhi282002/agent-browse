@@ -1,7 +1,38 @@
+import path from "path";
+import fs from "fs";
 import { executeNode } from "./nodeRegistry";
 import type { Stagehand, StagehandBrowser } from "@browserbasehq/stagehand";
 
+export function ensureStagehandExtensionPath(): string | undefined {
+  if (
+    process.env.STAGEHAND_EXTENSION_ARCHIVE_PATH &&
+    fs.existsSync(process.env.STAGEHAND_EXTENSION_ARCHIVE_PATH)
+  ) {
+    return process.env.STAGEHAND_EXTENSION_ARCHIVE_PATH;
+  }
+
+  const candidatePaths = [
+    path.resolve(process.cwd(), "node_modules/@browserbasehq/stagehand/dist/assets/stagehand-extension.zip"),
+    path.resolve(__dirname, "../../node_modules/@browserbasehq/stagehand/dist/assets/stagehand-extension.zip"),
+    path.resolve(__dirname, "../node_modules/@browserbasehq/stagehand/dist/assets/stagehand-extension.zip"),
+    "C:\\agentbrowse\\node_modules\\@browserbasehq\\stagehand\\dist\\assets\\stagehand-extension.zip",
+  ];
+
+  for (const candidate of candidatePaths) {
+    if (fs.existsSync(candidate)) {
+      process.env.STAGEHAND_EXTENSION_ARCHIVE_PATH = candidate;
+      return candidate;
+    }
+  }
+
+  return undefined;
+}
+
+// Ensure env variable is initialized as soon as this module loads
+ensureStagehandExtensionPath();
+
 async function getStagehandModule() {
+  ensureStagehandExtensionPath();
   return await import("@browserbasehq/stagehand");
 }
 
@@ -77,11 +108,14 @@ export class BrowserbaseService {
       const browser = await browserbase.launch({
         apiKey: process.env.BROWSERBASE_API_KEY!,
         projectId: process.env.BROWSERBASE_PROJECT_ID?.trim() || undefined,
+        browserSettings: {
+          blockAds: true,
+        },
       });
 
       const [page] = await browser.context.pages();
       if (page) {
-        await page.goto(targetUrl);
+        await page.goto(targetUrl, { waitUntil: "domcontentloaded" });
       }
 
       // Safe session details
@@ -113,6 +147,7 @@ export class BrowserbaseService {
     workflowName: string;
     targetUrl: string;
     aiModel?: string;
+    userEmail?: string;
     nodes: Array<{
       id: string;
       data: {
@@ -140,6 +175,7 @@ export class BrowserbaseService {
         durationMs: Math.floor(Math.random() * 400) + 300,
         logs: [
           `Allocated simulated worker for "${node.data.title}"`,
+          `User Context: ${payload.userEmail || "anonymous"}`,
           `Target: ${node.data.url || payload.targetUrl}`,
           `Action: ${node.data.actionSummary}`,
           `Completed step successfully.`,
@@ -171,6 +207,9 @@ export class BrowserbaseService {
       browser = await browserbase.launch({
         apiKey: process.env.BROWSERBASE_API_KEY!,
         projectId: process.env.BROWSERBASE_PROJECT_ID?.trim() || undefined,
+        browserSettings: {
+          blockAds: true,
+        },
       });
 
       stagehand = await Stagehand.create({ browser });
@@ -182,37 +221,54 @@ export class BrowserbaseService {
 
       // Initial page navigation
       if (payload.targetUrl) {
-        await page.goto(payload.targetUrl);
+        await page.goto(payload.targetUrl, { waitUntil: "domcontentloaded" });
       }
 
       const stepResults: StepExecutionResult[] = [];
+      const pipelineOutputs: Record<string, unknown> = {};
+      let previousStepOutput: Record<string, unknown> | undefined = undefined;
 
-      for (const node of payload.nodes) {
+      for (let i = 0; i < payload.nodes.length; i++) {
+        const node = payload.nodes[i];
+        const stepNum = i + 1;
+        const totalSteps = payload.nodes.length;
         const stepStart = Date.now();
+        console.log(`[Workflow] Step ${stepNum}/${totalSteps}: "${node.data.title}" starting...`);
         const logs: string[] = [`Starting step: ${node.data.title}`];
 
         try {
-          // Execute node using the modular Node Registry
+          // Execute node using the modular Node Registry with accumulated outputs
           const nodeExecution = await executeNode(node, {
             stagehand,
             page,
             targetUrl: payload.targetUrl,
             aiModel: payload.aiModel,
+            userEmail: payload.userEmail,
+            pipelineOutputs,
+            previousStepOutput,
           });
 
           logs.push(...nodeExecution.logs);
+          if (nodeExecution.output) {
+            pipelineOutputs[node.id] = nodeExecution.output;
+            previousStepOutput = nodeExecution.output;
+          }
+
+          const durationMs = Date.now() - stepStart;
+          console.log(`[Workflow] Step ${stepNum}/${totalSteps}: "${node.data.title}" completed (${durationMs}ms)`);
 
           stepResults.push({
             stepId: node.id,
             stepNumber: node.data.stepNumber,
             title: node.data.title,
             status: "completed",
-            durationMs: Date.now() - stepStart,
+            durationMs,
             logs,
             output: nodeExecution.output,
           });
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : String(err);
+          console.error(`[Workflow] Step ${stepNum}/${totalSteps}: "${node.data.title}" failed:`, errMsg);
           logs.push(`Step warning/error: ${errMsg}`);
           // Continue execution with graceful logging
           stepResults.push({

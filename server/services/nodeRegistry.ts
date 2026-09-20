@@ -24,6 +24,9 @@ export interface NodeExecutionContext {
   page: Page;
   targetUrl: string;
   aiModel?: string;
+  userEmail?: string;
+  pipelineOutputs?: Record<string, unknown>;
+  previousStepOutput?: Record<string, unknown>;
 }
 
 export interface NodeExecutionOutput {
@@ -49,7 +52,7 @@ export const executeNavigationNode: NodeHandler = async (node, ctx) => {
 
   if (ctx.page && destinationUrl) {
     logs.push(`Navigating to URL: ${destinationUrl}`);
-    await ctx.page.goto(destinationUrl);
+    await ctx.page.goto(destinationUrl, { waitUntil: 'domcontentloaded' });
     logs.push('Navigation complete: DOM ready');
   } else {
     const actInstruction = node.data.actionSummary || node.data.title;
@@ -191,6 +194,20 @@ export const executeSummarizationNode: NodeHandler = async (node, ctx) => {
   let pageText = '';
   let pageTitle = node.data.title;
 
+  // Check if a prior extraction step produced structured data/news
+  let extractedContext = '';
+  if (ctx.previousStepOutput) {
+    extractedContext = JSON.stringify(ctx.previousStepOutput, null, 2);
+  } else if (ctx.pipelineOutputs) {
+    const previousExtracts = Object.values(ctx.pipelineOutputs)
+      .filter((v) => v && typeof v === 'object')
+      .map((v) => JSON.stringify(v, null, 2))
+      .join('\n');
+    if (previousExtracts) {
+      extractedContext = previousExtracts;
+    }
+  }
+
   if (ctx.page) {
     try {
       logs.push('Extracting live DOM innerText for agent perception...');
@@ -204,9 +221,13 @@ export const executeSummarizationNode: NodeHandler = async (node, ctx) => {
     }
   }
 
+  const combinedContent = extractedContext
+    ? `Extracted Data from previous step:\n${extractedContext}\n\nWebpage text:\n${pageText.slice(0, 8000)}`
+    : pageText;
+
   logs.push(`Dispatching web summarization to ${modelToUse}...`);
   const agentResult = await AgentService.summarizeWebPage({
-    pageText,
+    pageText: combinedContent,
     pageTitle,
     targetUrl: ctx.targetUrl,
     instruction,
@@ -242,6 +263,7 @@ export const executeEmailNode: NodeHandler = async (node, ctx) => {
 
   const recipient =
     (node.data.url?.includes('@') ? node.data.url : undefined) ||
+    ctx.userEmail ||
     process.env.ALERT_EMAIL ||
     'alerts@agentbrowse.com';
 
@@ -250,13 +272,79 @@ export const executeEmailNode: NodeHandler = async (node, ctx) => {
     node.data.actionSummary ||
     'AgentBrowse Workflow Notification';
 
-  const bodyContent =
+  const defaultDescription =
     node.data.description ||
     node.data.actionSummary ||
     `Workflow step [${node.data.title}] dispatched an email notification for target ${ctx.targetUrl}.`;
 
+  // Extract contextual results from previous steps (summary, insights, scraped data)
+  let extractedSummary = '';
+  let keyInsights: string[] = [];
+  let rawDataPreview = '';
+
+  if (ctx.previousStepOutput) {
+    if (ctx.previousStepOutput.summary) {
+      extractedSummary = String(ctx.previousStepOutput.summary);
+    }
+    if (Array.isArray(ctx.previousStepOutput.keyInsights)) {
+      keyInsights = ctx.previousStepOutput.keyInsights.map(String);
+    }
+  }
+
+  if (!extractedSummary && ctx.pipelineOutputs) {
+    for (const output of Object.values(ctx.pipelineOutputs)) {
+      if (output && typeof output === 'object') {
+        const obj = output as Record<string, unknown>;
+        if (obj.summary && !extractedSummary) {
+          extractedSummary = String(obj.summary);
+        }
+        if (Array.isArray(obj.keyInsights) && keyInsights.length === 0) {
+          keyInsights = obj.keyInsights.map(String);
+        }
+        if (!rawDataPreview && (obj.articles || obj.data || obj.extractedData || obj.items)) {
+          rawDataPreview = JSON.stringify(
+            obj.articles || obj.data || obj.extractedData || obj.items,
+            null,
+            2,
+          );
+        }
+      }
+    }
+  }
+
+  const bodyContent = extractedSummary
+    ? `Summary of Results:\n${extractedSummary}\n\n${
+        keyInsights.length
+          ? 'Key Insights:\n' + keyInsights.map((i) => `• ${i}`).join('\n')
+          : ''
+      }`
+    : defaultDescription;
+
   logs.push(`Preparing Resend email dispatch to: ${recipient}`);
   logs.push(`Subject: "${subject}"`);
+
+  const insightsHtml = keyInsights.length
+    ? `<div style="margin-top: 14px; padding-top: 12px; border-top: 1px dashed #cbd5e1;">
+        <p style="margin: 0 0 6px; font-weight: 700; font-size: 12px; text-transform: uppercase; color: #475569;">Key Insights:</p>
+        <ul style="margin: 0; padding-left: 18px; font-size: 13px; color: #334155; line-height: 1.5;">
+          ${keyInsights.map((i) => `<li>${i}</li>`).join('')}
+        </ul>
+       </div>`
+    : '';
+
+  const summaryHtml = extractedSummary
+    ? `<div style="background-color: #f8fafc; border-radius: 8px; padding: 14px; margin-bottom: 16px; border: 1px solid #e2e8f0;">
+        <span style="font-size: 11px; font-weight: 700; text-transform: uppercase; color: #2563eb; letter-spacing: 0.05em;">AI Executive Summary</span>
+        <p style="margin: 8px 0 0; font-size: 13px; color: #1e293b; line-height: 1.6; white-space: pre-wrap;">${extractedSummary}</p>
+        ${insightsHtml}
+      </div>`
+    : '';
+
+  const rawDataHtml = rawDataPreview
+    ? `<div style="background-color: #f1f5f9; border-radius: 8px; padding: 12px; margin-bottom: 16px; font-family: monospace; font-size: 11px; color: #334155; max-height: 200px; overflow-y: auto; white-space: pre-wrap;">
+        ${rawDataPreview.slice(0, 1000)}
+       </div>`
+    : '';
 
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; border: 1px solid #e4e4e7; border-radius: 12px; background-color: #ffffff;">
@@ -265,9 +353,11 @@ export const executeEmailNode: NodeHandler = async (node, ctx) => {
         <h2 style="margin: 8px 0 0; color: #18181b; font-size: 18px; font-weight: 700;">${subject}</h2>
       </div>
       <div style="background-color: #fafafa; border-radius: 8px; padding: 14px; margin-bottom: 16px; border: 1px solid #f4f4f5;">
-        <p style="margin: 0 0 8px; font-size: 13px; color: #52525b;"><strong>Target Webpage:</strong> <a href="${ctx.targetUrl}" style="color: #2563eb; text-decoration: none;">${ctx.targetUrl}</a></p>
-        <p style="margin: 0; font-size: 13px; color: #27272a; line-height: 1.5;">${bodyContent}</p>
+        <p style="margin: 0 0 6px; font-size: 13px; color: #52525b;"><strong>Target Webpage:</strong> <a href="${ctx.targetUrl}" style="color: #2563eb; text-decoration: none;">${ctx.targetUrl}</a></p>
+        <p style="margin: 0; font-size: 13px; color: #27272a; line-height: 1.5;">${defaultDescription}</p>
       </div>
+      ${summaryHtml}
+      ${rawDataHtml}
       <p style="margin: 0; font-size: 11px; color: #a1a1aa;">Sent via Resend Email Infrastructure • AgentBrowse Autonomous Engine</p>
     </div>
   `;
@@ -290,6 +380,7 @@ export const executeEmailNode: NodeHandler = async (node, ctx) => {
       subject: sendRes.subject,
       mode: sendRes.mode,
       deliveredAt: sendRes.deliveredAt,
+      includedSummary: Boolean(extractedSummary),
     },
     logs,
   };
@@ -325,7 +416,7 @@ export async function executeNode(
     node.data.url.startsWith('http')
   ) {
     if (ctx.page) {
-      await ctx.page.goto(node.data.url);
+      await ctx.page.goto(node.data.url, { waitUntil: 'domcontentloaded' });
       preLogs.push(`Navigated to ${node.data.url}`);
     }
   }
@@ -333,7 +424,17 @@ export async function executeNode(
   const archetypeKey = (node.data.archetype || 'action').toLowerCase();
   const handler = NODE_REGISTRY[archetypeKey] || NODE_REGISTRY.action;
 
+  console.log(
+    `[Pipeline] Step ${node.data.stepNumber || '?'}: "${node.data.title}" -> [Handler: ${archetypeKey}]`,
+  );
+
+  const stepStart = Date.now();
   const result = await handler(node, ctx);
+  const durationMs = Date.now() - stepStart;
+
+  console.log(
+    `[Pipeline] Step ${node.data.stepNumber || '?'}: Finished "${node.data.title}" in ${durationMs}ms`,
+  );
 
   return {
     output: result.output,

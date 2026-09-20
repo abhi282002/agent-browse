@@ -1,9 +1,36 @@
-import { z } from "zod";
-import { router, publicProcedure } from "@/server/trpc/trpc";
-import { BrowserbaseService } from "@/server/services/browserbaseService";
-import { TriggerDevService } from "@/server/services/triggerDevService";
-import { AgentService } from "@/server/services/agentService";
-import { EmailService } from "@/server/services/emailService";
+import { z } from 'zod';
+import { router, publicProcedure } from '@/server/trpc/trpc';
+import { BrowserbaseService } from '@/server/services/browserbaseService';
+import { TriggerDevService } from '@/server/services/triggerDevService';
+import { AgentService } from '@/server/services/agentService';
+import { EmailService } from '@/server/services/emailService';
+
+import type { Context } from '@/server/trpc/context';
+
+const executionInputSchema = z.object({
+  workflowId: z.string(),
+  workflowName: z.string(),
+  targetUrl: z.string(),
+  aiModel: z.string().optional(),
+  userEmail: z.string().optional(),
+  nodes: z.array(
+    z.object({
+      id: z.string(),
+      data: z.object({
+        stepNumber: z.number(),
+        title: z.string(),
+        category: z.string(),
+        badge: z.string(),
+        description: z.string(),
+        actionSummary: z.string(),
+        url: z.string().optional(),
+        archetype: z.string().optional(),
+      }),
+    }),
+  ),
+});
+
+type ExecutionInput = z.infer<typeof executionInputSchema>;
 
 export const executionRouter = router({
   /**
@@ -27,7 +54,7 @@ export const executionRouter = router({
         .object({
           targetUrl: z.string().optional(),
         })
-        .optional()
+        .optional(),
     )
     .mutation(async ({ input }) => {
       return BrowserbaseService.createSandboxSession(input?.targetUrl);
@@ -36,33 +63,18 @@ export const executionRouter = router({
   /**
    * Start durable background workflow execution orchestrated by Trigger.dev and Browserbase
    */
+
   startExecution: publicProcedure
-    .input(
-      z.object({
-        workflowId: z.string(),
-        workflowName: z.string(),
-        targetUrl: z.string(),
-        aiModel: z.string().optional(),
-        nodes: z.array(
-          z.object({
-            id: z.string(),
-            data: z.object({
-              stepNumber: z.number(),
-              title: z.string(),
-              category: z.string(),
-              badge: z.string(),
-              description: z.string(),
-              actionSummary: z.string(),
-              url: z.string().optional(),
-              archetype: z.string().optional(),
-            }),
-          })
-        ),
-      })
-    )
-    .mutation(async ({ input }) => {
-      return TriggerDevService.triggerWorkflow(input);
-    }),
+    .input(executionInputSchema)
+    .mutation(
+      async ({ input, ctx }: { input: ExecutionInput; ctx: Context }) => {
+        const resolvedEmail = input.userEmail || ctx.user?.email || undefined;
+        return TriggerDevService.triggerWorkflow({
+          ...input,
+          userEmail: resolvedEmail,
+        });
+      },
+    ),
 
   /**
    * Poll status of an active Trigger.dev run

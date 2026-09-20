@@ -10,6 +10,7 @@ export type NodeArchetype =
   | "extraction"
   | "webhook"
   | "summarization"
+  | "news_summary"
   | "email";
 
 export interface WorkflowNodeData extends Record<string, unknown> {

@@ -10,15 +10,20 @@ interface WorkflowExecutionPanelProps {
   workflow: WorkflowBlueprint;
   onRunLocal: () => void;
   isLocalRunning: boolean;
+  onEditWorkflow?: () => void;
 }
 
 export function WorkflowExecutionPanel({
   workflow,
   onRunLocal,
   isLocalRunning,
+  onEditWorkflow,
 }: WorkflowExecutionPanelProps) {
   const { data: integrations } = trpc.execution.getIntegrationsStatus.useQuery(undefined, {
     staleTime: 30 * 1000,
+  });
+  const { data: currentUser } = trpc.auth.me.useQuery(undefined, {
+    staleTime: 60 * 1000,
   });
 
   const [isRunningCloud, setIsRunningCloud] = useState(false);
@@ -48,6 +53,7 @@ export function WorkflowExecutionPanel({
       workflowName: workflow.name,
       targetUrl: workflow.targetUrl,
       aiModel: workflow.aiModel,
+      userEmail: currentUser?.email,
       nodes: workflow.nodes.map((node) => ({
         id: node.id,
         data: {
@@ -72,9 +78,24 @@ export function WorkflowExecutionPanel({
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-xs">
           <span className="text-zinc-500 font-medium">Target Web URL</span>
-          <span className="text-[11px] font-mono text-zinc-700 truncate max-w-[160px]" title={workflow.targetUrl}>
-            {workflow.targetUrl}
-          </span>
+          <div className="flex items-center gap-1.5 max-w-[190px]">
+            <span
+              className="text-[11px] font-mono text-zinc-700 truncate"
+              title={workflow.targetUrl}
+            >
+              {workflow.targetUrl}
+            </span>
+            {onEditWorkflow && (
+              <button
+                type="button"
+                onClick={onEditWorkflow}
+                className="text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer text-xs p-0.5 rounded hover:bg-zinc-200/60 shrink-0"
+                title="Edit Target URL & Workflow Settings"
+              >
+                ✏️
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="flex items-center justify-between text-xs">
@@ -83,6 +104,18 @@ export function WorkflowExecutionPanel({
             {workflow.nodes.length} Steps
           </span>
         </div>
+
+        {currentUser?.email && (
+          <div className="flex items-center justify-between text-xs">
+            <span className="text-zinc-500 font-medium">Operator Context</span>
+            <span
+              className="text-[11px] font-mono text-zinc-700 truncate max-w-[160px]"
+              title={currentUser.email}
+            >
+              {currentUser.email}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Cloud Integrations Status Bar */}

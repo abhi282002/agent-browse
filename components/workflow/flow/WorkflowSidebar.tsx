@@ -15,6 +15,7 @@ interface WorkflowSidebarProps {
   onSelectWorkflow: (id: string) => void;
   selectedNode: WorkflowNodeType | null;
   onOpenCreateModal: () => void;
+  onOpenEditWorkflow?: () => void;
   onOpenNodeCatalog?: () => void;
   onOpenNodeConfig?: () => void;
   onRunWorkflow: () => void;
@@ -30,6 +31,7 @@ export function WorkflowSidebar({
   onSelectWorkflow,
   selectedNode,
   onOpenCreateModal,
+  onOpenEditWorkflow,
   onOpenNodeCatalog,
   onOpenNodeConfig,
   onRunWorkflow,
@@ -102,6 +104,16 @@ export function WorkflowSidebar({
                 <span>+ Step</span>
               </button>
             )}
+            {onOpenEditWorkflow && (
+              <button
+                type="button"
+                onClick={onOpenEditWorkflow}
+                className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-colors cursor-pointer shadow-2xs"
+                title="Edit Workflow Settings & Target URL"
+              >
+                <span>✏️ Edit</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={onOpenCreateModal}
@@ -116,9 +128,21 @@ export function WorkflowSidebar({
         {/* Workflow Name with Switcher Dropdown */}
         <div className="space-y-1">
           <div className="flex items-center justify-between gap-2">
-            <h3 className="text-base font-bold text-zinc-900 tracking-tight leading-snug">
-              {workflow.name}
-            </h3>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <h3 className="text-base font-bold text-zinc-900 tracking-tight leading-snug truncate">
+                {workflow.name}
+              </h3>
+              {onOpenEditWorkflow && (
+                <button
+                  type="button"
+                  onClick={onOpenEditWorkflow}
+                  className="text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer text-xs p-0.5 rounded hover:bg-zinc-100 shrink-0"
+                  title="Edit Workflow Settings"
+                >
+                  ✏️
+                </button>
+              )}
+            </div>
             <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200/70 shrink-0">
               {workflow.category}
             </span>
@@ -154,6 +178,7 @@ export function WorkflowSidebar({
         workflow={workflow}
         onRunLocal={onRunWorkflow}
         isLocalRunning={isRunning}
+        onEditWorkflow={onOpenEditWorkflow}
       />
 
       {/* Selected Node Details Inspector */}

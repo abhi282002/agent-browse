@@ -1,6 +1,9 @@
-import { tasks, runs } from "@trigger.dev/sdk";
-import { BrowserbaseService } from "./browserbaseService";
-import type { executeWorkflowPipelineTask, TriggerWorkflowPayload } from "@/trigger/workflowExecution";
+import { tasks, runs } from '@trigger.dev/sdk';
+import { BrowserbaseService } from './browserbaseService';
+import type {
+  executeWorkflowPipelineTask,
+  TriggerWorkflowPayload,
+} from '@/trigger/workflowExecution';
 
 export class TriggerDevService {
   static getStatus() {
@@ -8,10 +11,10 @@ export class TriggerDevService {
     const projectId = process.env.TRIGGER_PROJECT_ID?.trim();
 
     return {
-      isConfigured: Boolean(secretKey && secretKey.startsWith("tr_")),
+      isConfigured: Boolean(secretKey && secretKey.startsWith('tr_')),
       secretKeyPresent: Boolean(secretKey),
-      projectId: projectId || "agentbrowse-automation",
-      provider: "Trigger.dev v3 Background Task Engine",
+      projectId: projectId || 'agentbrowse-automation',
+      provider: 'Trigger.dev v3 Background Task Engine',
     };
   }
 
@@ -21,38 +24,43 @@ export class TriggerDevService {
     if (status.isConfigured) {
       try {
         const handle = await tasks.trigger<typeof executeWorkflowPipelineTask>(
-          "execute-workflow-pipeline",
-          payload
+          'execute-workflow-pipeline',
+          payload,
         );
         return {
           runId: handle.id,
-          status: "queued" as const,
-          mode: "trigger.dev" as const,
+          status: 'queued' as const,
+          mode: 'trigger.dev' as const,
           isBackground: true,
-          message: "Durable workflow pipeline queued on Trigger.dev v3.",
+          message: 'Durable workflow pipeline queued on Trigger.dev v3.',
         };
       } catch (err) {
-        console.warn("[TriggerDevService] Failed to queue on Trigger.dev, falling back to direct run:", err);
+        console.warn(
+          '[TriggerDevService] Failed to queue on Trigger.dev, falling back to direct run:',
+          err,
+        );
       }
     }
 
-    // Direct execution via BrowserbaseService (cloud Chromium or simulation)
     const result = await BrowserbaseService.executeWorkflow(payload);
+
+    console.log('[TriggerDevService] Direct execution result:', result);
+
     return {
       runId: `local-${Date.now().toString(36)}`,
       status: result.status,
-      mode: "direct" as const,
+      mode: 'direct' as const,
       isBackground: false,
       result,
-      message: "Executed directly via Browserbase & Stagehand.",
+      message: 'Executed directly via Browserbase & Stagehand.',
     };
   }
 
   static async getRunStatus(runId: string) {
-    if (runId.startsWith("local-") || runId.startsWith("sim-")) {
+    if (runId.startsWith('local-') || runId.startsWith('sim-')) {
       return {
         id: runId,
-        status: "COMPLETED",
+        status: 'COMPLETED',
         output: null,
       };
     }
@@ -70,7 +78,7 @@ export class TriggerDevService {
     } catch (err) {
       return {
         id: runId,
-        status: "UNKNOWN",
+        status: 'UNKNOWN',
         error: err instanceof Error ? err.message : String(err),
       };
     }

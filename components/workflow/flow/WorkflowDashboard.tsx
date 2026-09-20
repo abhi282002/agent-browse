@@ -1,21 +1,24 @@
-"use client";
+'use client';
 
-import React, { useState } from "react";
-import { useWorkflowManager } from "./hooks/useWorkflowManager";
-import { WorkflowCanvas } from "./WorkflowCanvas";
-import { WorkflowSidebar } from "./WorkflowSidebar";
-import { NodePalette } from "./nodes/NodePalette";
-import { NodeCatalogModal } from "./nodes/NodeCatalogModal";
-import { NodeConfigDrawer } from "./nodes/NodeConfigDrawer";
-import { AdminNodeManagerModal } from "./admin/AdminNodeManagerModal";
-import { CreateWorkflowView } from "./views/CreateWorkflowView";
-import { BotIcon, SparklesIcon } from "@/components/ui/icons";
+import { useState } from 'react';
+import { useWorkflowManager } from './hooks/useWorkflowManager';
+import { WorkflowCanvas } from './WorkflowCanvas';
+import { WorkflowSidebar } from './WorkflowSidebar';
+import { NodePalette } from './nodes/NodePalette';
+import { NodeCatalogModal } from './nodes/NodeCatalogModal';
+import { NodeConfigDrawer } from './nodes/NodeConfigDrawer';
+import { AdminNodeManagerModal } from './admin/AdminNodeManagerModal';
+import { EditWorkflowModal } from './modals/EditWorkflowModal';
+import { CreateWorkflowView } from './views/CreateWorkflowView';
+import { BotIcon, SparklesIcon } from '@/components/ui/icons';
 
 interface WorkflowDashboardProps {
   initialCreateMode?: boolean;
 }
 
-export function WorkflowDashboard({ initialCreateMode = false }: WorkflowDashboardProps) {
+export function WorkflowDashboard({
+  initialCreateMode = false,
+}: WorkflowDashboardProps) {
   const {
     workflows,
     activeWorkflow,
@@ -26,6 +29,7 @@ export function WorkflowDashboard({ initialCreateMode = false }: WorkflowDashboa
     addNode,
     updateNode,
     deleteNode,
+    updateWorkflowDetails,
     setSelectedNode,
     runPipeline,
     isSyncing,
@@ -40,6 +44,7 @@ export function WorkflowDashboard({ initialCreateMode = false }: WorkflowDashboa
   const [isCatalogOpen, setIsCatalogOpen] = useState(false);
   const [isConfigDrawerOpen, setIsConfigDrawerOpen] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // If create workflow view is open
   if (isCreateView) {
@@ -61,9 +66,12 @@ export function WorkflowDashboard({ initialCreateMode = false }: WorkflowDashboa
         <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-900 text-white shadow-xs mb-4">
           <BotIcon className="h-6 w-6" />
         </div>
-        <h3 className="text-lg font-bold text-zinc-900">No Workflows in Database</h3>
+        <h3 className="text-lg font-bold text-zinc-900">
+          No Workflows in Database
+        </h3>
         <p className="mt-1 text-sm text-zinc-500 max-w-md">
-          Create your first autonomous browser agent workflow to start automating tasks with Chromium and AI vision.
+          Create your first autonomous browser agent workflow to start
+          automating tasks with Chromium and AI vision.
         </p>
         <button
           type="button"
@@ -96,11 +104,11 @@ export function WorkflowDashboard({ initialCreateMode = false }: WorkflowDashboa
                 onClick={() => saveWorkflow()}
                 disabled={isSaving}
                 className={`flex items-center gap-1 rounded-lg border px-2.5 py-0.5 text-[11px] font-bold transition-all cursor-pointer ${
-                  saveStatus === "saved"
-                    ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                    : saveStatus === "error"
-                    ? "border-red-300 bg-red-50 text-red-800"
-                    : "border-zinc-300/80 bg-white text-zinc-700 hover:bg-zinc-50"
+                  saveStatus === 'saved'
+                    ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
+                    : saveStatus === 'error'
+                      ? 'border-red-300 bg-red-50 text-red-800'
+                      : 'border-zinc-300/80 bg-white text-zinc-700 hover:bg-zinc-50'
                 } disabled:opacity-50`}
                 title="Save current workflow and nodes to PostgreSQL"
               >
@@ -109,7 +117,7 @@ export function WorkflowDashboard({ initialCreateMode = false }: WorkflowDashboa
                     <span className="h-1.5 w-1.5 rounded-full bg-zinc-500 animate-ping" />
                     <span>Saving...</span>
                   </>
-                ) : saveStatus === "saved" ? (
+                ) : saveStatus === 'saved' ? (
                   <>
                     <span className="text-emerald-600">✓</span>
                     <span className="text-emerald-800">Saved</span>
@@ -142,12 +150,16 @@ export function WorkflowDashboard({ initialCreateMode = false }: WorkflowDashboa
                 ) : (
                   <>
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    <span className="text-emerald-700 font-medium">DB Synced</span>
+                    <span className="text-emerald-700 font-medium">
+                      DB Synced
+                    </span>
                   </>
                 )}
               </span>
               <span className="hidden sm:inline">•</span>
-              <span className="hidden sm:inline">Nodes: {activeWorkflow.nodes.length}</span>
+              <span className="hidden sm:inline">
+                Nodes: {activeWorkflow.nodes.length}
+              </span>
             </div>
           </div>
 
@@ -174,6 +186,7 @@ export function WorkflowDashboard({ initialCreateMode = false }: WorkflowDashboa
             onSelectWorkflow={selectWorkflow}
             selectedNode={selectedNode}
             onOpenCreateModal={() => setIsCreateView(true)}
+            onOpenEditWorkflow={() => setIsEditModalOpen(true)}
             onOpenNodeCatalog={() => setIsCatalogOpen(true)}
             onOpenNodeConfig={() => setIsConfigDrawerOpen(true)}
             onRunWorkflow={runPipeline}
@@ -184,6 +197,14 @@ export function WorkflowDashboard({ initialCreateMode = false }: WorkflowDashboa
           />
         </div>
       </div>
+
+      {/* Edit Workflow Settings & Target URL Modal */}
+      <EditWorkflowModal
+        isOpen={isEditModalOpen}
+        workflow={activeWorkflow}
+        onClose={() => setIsEditModalOpen(false)}
+        onSave={updateWorkflowDetails}
+      />
 
       {/* Node Catalog Modal for Customers */}
       <NodeCatalogModal

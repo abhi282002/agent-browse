@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import type { WorkflowNodeType, WorkflowNodeData } from "../types";
+import type { WorkflowNodeType, WorkflowNodeData, NodeArchetype } from "../types";
 import { TerminalIcon, CheckIcon } from "@/components/ui/icons";
 
 interface NodeConfigDrawerProps {
@@ -26,6 +26,7 @@ function NodeConfigDrawerContent({
   const [title, setTitle] = useState(node.data.title || "");
   const [category, setCategory] = useState(node.data.category || "");
   const [badge, setBadge] = useState(node.data.badge || "");
+  const [archetype, setArchetype] = useState<NodeArchetype>(node.data.archetype || "action");
   const [url, setUrl] = useState(node.data.url || "");
   const [selector, setSelector] = useState(node.data.selector || "");
   const [actionSummary, setActionSummary] = useState(node.data.actionSummary || "");
@@ -39,6 +40,7 @@ function NodeConfigDrawerContent({
       title,
       category,
       badge,
+      archetype,
       url,
       selector,
       actionSummary,
@@ -121,6 +123,26 @@ function NodeConfigDrawerContent({
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-1.5 text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none"
               />
             </div>
+          </div>
+
+          <div>
+            <label className="font-semibold text-zinc-700 block mb-1">
+              Archetype Protocol
+            </label>
+            <select
+              value={archetype}
+              onChange={(e) => setArchetype(e.target.value as NodeArchetype)}
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-1.5 text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none cursor-pointer"
+            >
+              <option value="navigation">Navigation (URL &amp; Network)</option>
+              <option value="grounding">Grounding (Vision &amp; Accessibility)</option>
+              <option value="action">Action (Clicks &amp; Keystrokes)</option>
+              <option value="form">Form (Auth &amp; Roadblocks)</option>
+              <option value="extraction">Extraction (Data &amp; JSON Scraper)</option>
+              <option value="webhook">Webhook (Artifacts &amp; Export)</option>
+              <option value="summarization">AI Summarization (Gemini &amp; Grok)</option>
+              <option value="email">Email Notification (Resend)</option>
+            </select>
           </div>
 
           <div>

@@ -30,15 +30,10 @@ export function NodeCatalogModal({
 
   if (!isOpen) return null;
 
-  const categories = [
-    "all",
-    "Navigation",
-    "Vision & CDP",
-    "Action Engine",
-    "Auth & Form",
-    "Data Scraper",
-    "Artifact Engine",
-  ];
+  const dynamicCategories = Array.from(
+    new Set(availableTemplates.map((t) => t.category).filter(Boolean))
+  );
+  const categories = ["all", ...dynamicCategories];
 
   const filteredTemplates = availableTemplates.filter((tpl) => {
     const matchesSearch =
@@ -179,6 +174,11 @@ export function NodeCatalogModal({
                       <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-mono text-zinc-600">
                         {tpl.badge}
                       </span>
+                      {tpl.archetype && (
+                        <span className="rounded bg-zinc-200/60 px-1.5 py-0.5 text-[9px] font-mono font-medium text-zinc-500">
+                          {tpl.archetype}
+                        </span>
+                      )}
                     </div>
                   </div>
 

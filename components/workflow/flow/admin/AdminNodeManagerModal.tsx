@@ -206,6 +206,8 @@ export function AdminNodeManagerModal({ isOpen, onClose }: AdminNodeManagerModal
                   <option value="form">Form (Auth &amp; Roadblocks)</option>
                   <option value="extraction">Extraction (Data &amp; JSON Scraper)</option>
                   <option value="webhook">Webhook (Artifacts &amp; Export)</option>
+                  <option value="summarization">AI Summarization (Gemini &amp; Grok)</option>
+                  <option value="email">Email Notification (Resend)</option>
                 </select>
               </div>
             </div>
@@ -301,6 +303,9 @@ export function AdminNodeManagerModal({ isOpen, onClose }: AdminNodeManagerModal
                       </span>
                       <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-mono font-medium text-zinc-600">
                         {tpl.category}
+                      </span>
+                      <span className="rounded bg-zinc-200/70 px-1.5 py-0.5 text-[10px] font-mono text-zinc-700">
+                        {tpl.archetype}
                       </span>
                       {tpl.isPremium ? (
                         <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200">

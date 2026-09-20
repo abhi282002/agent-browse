@@ -20,7 +20,8 @@ export class EmailService {
   private static resendClient: Resend | null = null;
 
   static getClient(): Resend | null {
-    const apiKey = process.env.RESEND_API_KEY?.trim();
+    const apiKey =
+      process.env.RESEND_API_KEY?.trim() || process.env.RESENT_API_KEY?.trim();
     if (!apiKey) return null;
     if (!this.resendClient) {
       this.resendClient = new Resend(apiKey);
@@ -29,7 +30,8 @@ export class EmailService {
   }
 
   static getStatus() {
-    const apiKey = process.env.RESEND_API_KEY?.trim();
+    const apiKey =
+      process.env.RESEND_API_KEY?.trim() || process.env.RESENT_API_KEY?.trim();
     return {
       isConfigured: Boolean(apiKey && apiKey.startsWith("re_")),
       provider: "Resend Transactional Email Engine",

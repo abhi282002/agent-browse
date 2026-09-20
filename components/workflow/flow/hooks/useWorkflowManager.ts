@@ -180,6 +180,7 @@ export function useWorkflowManager() {
     (nodeId: string, updatedData: Partial<WorkflowNodeData>) => {
       if (!activeWorkflow) return;
       let updatedNodes: WorkflowNodeType[] = [];
+      let mergedSelectedNode: WorkflowNodeType | null = null;
 
       setLocalWorkflows((prev) => {
         const base = prev ?? (serverWorkflows as unknown as WorkflowBlueprint[]) ?? [];
@@ -195,13 +196,17 @@ export function useWorkflowManager() {
                 ...updatedData,
               },
             };
-            setSelectedNode(merged);
+            mergedSelectedNode = merged;
             return merged;
           });
 
           return { ...wf, nodes: updatedNodes };
         });
       });
+
+      if (mergedSelectedNode) {
+        setSelectedNode(mergedSelectedNode);
+      }
 
       updateMutation.mutate({
         id: activeWorkflow.id,
@@ -236,10 +241,11 @@ export function useWorkflowManager() {
             (edge) => edge.source !== nodeId && edge.target !== nodeId
           );
 
-          setSelectedNode(null);
           return { ...wf, nodes: updatedNodes, edges: updatedEdges };
         });
       });
+
+      setSelectedNode(null);
 
       updateMutation.mutate({
         id: activeWorkflow.id,
@@ -248,6 +254,73 @@ export function useWorkflowManager() {
       });
     },
     [activeWorkflow, updateMutation, serverWorkflows]
+  );
+
+  const updateWorkflowDetails = useCallback(
+    async (details: {
+      name?: string;
+      description?: string;
+      category?: string;
+      targetUrl?: string;
+      aiModel?: string;
+      sandboxEnv?: string;
+      updateNodeUrls?: boolean;
+    }) => {
+      if (!activeWorkflow) return;
+
+      const oldTargetUrl = activeWorkflow.targetUrl;
+      let updatedNodes = activeWorkflow.nodes;
+
+      if (details.targetUrl && details.updateNodeUrls) {
+        updatedNodes = activeWorkflow.nodes.map((node) => {
+          if (
+            node.data.url === oldTargetUrl ||
+            !node.data.url ||
+            node.data.url === "https://example.com"
+          ) {
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                url: details.targetUrl!,
+              },
+            };
+          }
+          return node;
+        });
+      }
+
+      setLocalWorkflows((prev) => {
+        const base = prev ?? (serverWorkflows as unknown as WorkflowBlueprint[]) ?? [];
+        return base.map((wf) => {
+          if (wf.id !== activeWorkflow.id) return wf;
+          return {
+            ...wf,
+            name: details.name !== undefined ? details.name : wf.name,
+            description: details.description !== undefined ? details.description : wf.description,
+            category: details.category !== undefined ? details.category : wf.category,
+            targetUrl: details.targetUrl !== undefined ? details.targetUrl : wf.targetUrl,
+            aiModel: details.aiModel !== undefined ? details.aiModel : wf.aiModel,
+            sandboxEnv: details.sandboxEnv !== undefined ? details.sandboxEnv : wf.sandboxEnv,
+            nodes: updatedNodes,
+          };
+        });
+      });
+
+      await updateMutation.mutateAsync({
+        id: activeWorkflow.id,
+        name: details.name,
+        description: details.description,
+        category: details.category,
+        targetUrl: details.targetUrl,
+        aiModel: details.aiModel,
+        sandboxEnv: details.sandboxEnv,
+        ...(details.updateNodeUrls ? { nodes: updatedNodes } : {}),
+      });
+
+      await utils.workflow.getAll.invalidate();
+    },
+    [activeWorkflow, updateMutation, serverWorkflows, utils]
   );
 
   const updateGraph = useCallback(
@@ -378,6 +451,7 @@ export function useWorkflowManager() {
     addNode,
     updateNode,
     deleteNode,
+    updateWorkflowDetails,
     setSelectedNode,
     runPipeline,
   };
