@@ -1,12 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
-import type { NodeTemplate, NodeArchetype } from "@/components/workflow/flow/types";
+import type { NodeTemplate, NodeArchetype, EmailProviderType } from "@/components/workflow/flow/types";
 
 export interface CreateNodeTemplateInput {
   title: string;
   category: string;
   badge: string;
   archetype?: string;
+  emailProvider?: EmailProviderType;
   description: string;
   actionSummary: string;
   isPremium?: boolean;
@@ -19,6 +20,7 @@ export interface UpdateNodeTemplateInput {
   category?: string;
   badge?: string;
   archetype?: string;
+  emailProvider?: EmailProviderType;
   description?: string;
   actionSummary?: string;
   isPremium?: boolean;
@@ -72,23 +74,23 @@ export class NodeTemplateService {
       try {
         const newsGatherTpl = await prisma.nodeTemplate.create({
           data: {
-            title: "Browser News Collector",
+            title: "News Category Extractor",
             category: "Data Extraction",
-            badge: "Browser Agent",
+            badge: "Search & Fetch",
             archetype: "news_gather",
             description:
-              "Autonomously discovers and navigates category tabs (World, Sports, Crime, AI, Politics) to harvest live breaking headlines.",
+              "Extracts breaking news stories across 5 categories using Browserbase Web Search API and Fetch API JSON schema.",
             actionSummary:
-              "Harvest live news stories across categories via autonomous browser agent",
+              "Extract breaking news across 5 categories via Browserbase Search & Fetch API",
             isPremium: false,
             defaultMetrics: [
-              { label: "Harvest", value: "5 Stories / Category" },
-              { label: "Extraction", value: "Universal Tags" },
+              { label: "Engine", value: "Search + Fetch" },
+              { label: "Format", value: "JSON Schema" },
             ],
             defaultLogs: [
-              "Browser News Harvester initialized",
-              "Scanned navigation menu for category section URLs",
-              "Harvested live stories across category sections",
+              "News Harvester initialized",
+              "Querying Browserbase Search API",
+              "Extracted structured JSON article bodies",
             ],
           },
         });
@@ -98,24 +100,158 @@ export class NodeTemplateService {
       }
     }
 
-    return templates.map((t) => ({
-      id: t.id,
-      title: t.title,
-      category: t.category,
-      badge: t.badge,
-      archetype: t.archetype as NodeArchetype,
-      description: t.description,
-      actionSummary: t.actionSummary,
-      isPremium: t.isPremium,
-      defaultMetrics: (t.defaultMetrics as unknown as { label: string; value: string }[]) || [],
-      defaultLogs: (t.defaultLogs as unknown as string[]) || [],
-    }));
+    // Ensure pre-built Open URL node is available in catalog
+    const hasOpenUrl = templates.some((t) => t.archetype === "open_url");
+    if (!hasOpenUrl) {
+      try {
+        const openUrlTpl = await prisma.nodeTemplate.create({
+          data: {
+            title: "Open URL",
+            category: "Browser Navigation",
+            badge: "Launch",
+            archetype: "open_url",
+            description:
+              "Navigates headless browser session to target URL and initializes CDP session page context.",
+            actionSummary:
+              "Navigate browser session to target URL and wait for page load",
+            isPremium: false,
+            defaultMetrics: [
+              { label: "Status", value: "200 OK" },
+              { label: "Protocol", value: "HTTPS" },
+            ],
+            defaultLogs: [
+              "Initialized browser page session",
+              "Navigating to specified target URL",
+            ],
+          },
+        });
+        templates.push(openUrlTpl);
+      } catch {
+        // Continue gracefully if concurrent creation happened
+      }
+    }
+
+    // Ensure pre-built Resend Email node is available in catalog
+    const hasResendEmail = templates.some(
+      (t) => t.archetype === "email" && !t.title.toLowerCase().includes("nodemailer"),
+    );
+    if (!hasResendEmail) {
+      try {
+        const resendEmailTpl = await prisma.nodeTemplate.create({
+          data: {
+            title: "Email Notification (Resend)",
+            category: "Notification & Alert",
+            badge: "Resend API",
+            archetype: "email",
+            description:
+              "Dispatches formatted executive briefing or workflow execution alerts via Resend Transactional Email API.",
+            actionSummary:
+              "Dispatch email notification using Resend cloud transactional email engine",
+            isPremium: false,
+            defaultMetrics: [
+              { label: "Provider", value: "Resend API" },
+              { label: "Protocol", value: "HTTPS API" },
+            ],
+            defaultLogs: [
+              "Initialized Resend transactional dispatcher",
+              "Compiled executive email briefing",
+            ],
+          },
+        });
+        templates.push(resendEmailTpl);
+      } catch {
+        // Continue gracefully if concurrent creation happened
+      }
+    }
+
+    // Ensure pre-built Nodemailer SMTP Email node is available in catalog
+    const hasNodemailerEmail = templates.some(
+      (t) =>
+        t.archetype === "email" &&
+        (t.title.toLowerCase().includes("nodemailer") ||
+          t.title.toLowerCase().includes("smtp")),
+    );
+    if (!hasNodemailerEmail) {
+      try {
+        const nodemailerEmailTpl = await prisma.nodeTemplate.create({
+          data: {
+            title: "Email Notification (Nodemailer SMTP)",
+            category: "Notification & Alert",
+            badge: "SMTP Mail",
+            archetype: "email",
+            description:
+              "Dispatches formatted executive briefing or workflow alerts via custom Nodemailer SMTP transport.",
+            actionSummary:
+              "Dispatch email notification using Nodemailer SMTP server transport",
+            isPremium: false,
+            defaultMetrics: [
+              { label: "Provider", value: "Nodemailer (SMTP)" },
+              { label: "Protocol", value: "SMTP" },
+            ],
+            defaultLogs: [
+              "Initialized Nodemailer SMTP mail dispatcher",
+              "Compiled executive email briefing",
+            ],
+          },
+        });
+        templates.push(nodemailerEmailTpl);
+      } catch {
+        // Continue gracefully if concurrent creation happened
+      }
+    }
+
+    return templates.map((t) => {
+      const rawMetrics =
+        (t.defaultMetrics as unknown as { label: string; value: string }[]) || [];
+      const providerMetric = rawMetrics.find(
+        (m) => m.label?.toLowerCase() === "provider",
+      )?.value;
+      const emailProvider: EmailProviderType | undefined =
+        t.archetype === "email"
+          ? providerMetric?.toLowerCase().includes("nodemailer") ||
+            providerMetric?.toLowerCase().includes("smtp")
+            ? "nodemailer"
+            : "resend"
+          : undefined;
+
+      return {
+        id: t.id,
+        title: t.title,
+        category: t.category,
+        badge: t.badge,
+        archetype: t.archetype as NodeArchetype,
+        description: t.description,
+        actionSummary: t.actionSummary,
+        isPremium: t.isPremium,
+        emailProvider,
+        defaultMetrics: rawMetrics,
+        defaultLogs: (t.defaultLogs as unknown as string[]) || [],
+      };
+    });
   }
 
   /**
    * Create a new node template (Admin only)
    */
   static async create(input: CreateNodeTemplateInput): Promise<NodeTemplate> {
+    const defaultMetrics = input.defaultMetrics || [
+      { label: "Status", value: "Ready" },
+    ];
+
+    if (input.archetype === "email") {
+      const selectedProvider = input.emailProvider || "resend";
+      const existingProviderIdx = defaultMetrics.findIndex(
+        (m) => m.label.toLowerCase() === "provider",
+      );
+      const providerLabel =
+        selectedProvider === "nodemailer" ? "Nodemailer (SMTP)" : "Resend API";
+      if (existingProviderIdx >= 0) {
+        defaultMetrics[existingProviderIdx].value = providerLabel;
+      } else {
+        defaultMetrics.unshift({ label: "Provider", value: providerLabel });
+      }
+    }
+
     const created = await prisma.nodeTemplate.create({
       data: {
         title: input.title.trim(),
@@ -125,14 +261,25 @@ export class NodeTemplateService {
         description: input.description.trim(),
         actionSummary: input.actionSummary.trim(),
         isPremium: input.isPremium ?? false,
-        defaultMetrics: (input.defaultMetrics || [
-          { label: "Status", value: "Ready" },
-        ]) as unknown as Prisma.InputJsonValue,
+        defaultMetrics: defaultMetrics as unknown as Prisma.InputJsonValue,
         defaultLogs: (input.defaultLogs || [
           "Initialized step execution",
         ]) as unknown as Prisma.InputJsonValue,
       },
     });
+
+    const rawMetrics =
+      (created.defaultMetrics as unknown as { label: string; value: string }[]) || [];
+    const providerMetric = rawMetrics.find(
+      (m) => m.label?.toLowerCase() === "provider",
+    )?.value;
+    const emailProvider =
+      created.archetype === "email"
+        ? providerMetric?.toLowerCase().includes("nodemailer") ||
+          providerMetric?.toLowerCase().includes("smtp")
+          ? "nodemailer"
+          : "resend"
+        : undefined;
 
     return {
       id: created.id,
@@ -143,7 +290,8 @@ export class NodeTemplateService {
       description: created.description,
       actionSummary: created.actionSummary,
       isPremium: created.isPremium,
-      defaultMetrics: (created.defaultMetrics as unknown as { label: string; value: string }[]) || [],
+      emailProvider,
+      defaultMetrics: rawMetrics,
       defaultLogs: (created.defaultLogs as unknown as string[]) || [],
     };
   }
@@ -160,8 +308,23 @@ export class NodeTemplateService {
     if (input.description !== undefined) data.description = input.description.trim();
     if (input.actionSummary !== undefined) data.actionSummary = input.actionSummary.trim();
     if (input.isPremium !== undefined) data.isPremium = input.isPremium;
-    if (input.defaultMetrics !== undefined)
-      data.defaultMetrics = input.defaultMetrics as unknown as Prisma.InputJsonValue;
+
+    if (input.defaultMetrics !== undefined) {
+      const metrics = [...input.defaultMetrics];
+      if (input.archetype === "email" && input.emailProvider) {
+        const existingProviderIdx = metrics.findIndex(
+          (m) => m.label.toLowerCase() === "provider",
+        );
+        const providerLabel =
+          input.emailProvider === "nodemailer" ? "Nodemailer (SMTP)" : "Resend API";
+        if (existingProviderIdx >= 0) {
+          metrics[existingProviderIdx].value = providerLabel;
+        } else {
+          metrics.unshift({ label: "Provider", value: providerLabel });
+        }
+      }
+      data.defaultMetrics = metrics as unknown as Prisma.InputJsonValue;
+    }
     if (input.defaultLogs !== undefined)
       data.defaultLogs = input.defaultLogs as unknown as Prisma.InputJsonValue;
 
@@ -169,6 +332,19 @@ export class NodeTemplateService {
       where: { id },
       data,
     });
+
+    const rawMetrics =
+      (updated.defaultMetrics as unknown as { label: string; value: string }[]) || [];
+    const providerMetric = rawMetrics.find(
+      (m) => m.label?.toLowerCase() === "provider",
+    )?.value;
+    const emailProvider =
+      updated.archetype === "email"
+        ? providerMetric?.toLowerCase().includes("nodemailer") ||
+          providerMetric?.toLowerCase().includes("smtp")
+          ? "nodemailer"
+          : "resend"
+        : undefined;
 
     return {
       id: updated.id,
@@ -179,7 +355,8 @@ export class NodeTemplateService {
       description: updated.description,
       actionSummary: updated.actionSummary,
       isPremium: updated.isPremium,
-      defaultMetrics: (updated.defaultMetrics as unknown as { label: string; value: string }[]) || [],
+      emailProvider,
+      defaultMetrics: rawMetrics,
       defaultLogs: (updated.defaultLogs as unknown as string[]) || [],
     };
   }

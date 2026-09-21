@@ -13,7 +13,7 @@ export default function WorkflowPage() {
     <div className="min-h-screen bg-zinc-100 text-zinc-900 flex flex-col justify-between">
       {/* Top Navigation */}
       <header className="border-b border-zinc-200/80 bg-white/80 backdrop-blur-md sticky top-0 z-40">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6 py-3">
+        <div className="mx-auto flex w-full max-w-[1880px] items-center justify-between px-4 sm:px-6 lg:px-8 py-2.5">
           {/* Left: Brand & Back link */}
           <div className="flex items-center gap-3">
             <Link
@@ -68,8 +68,8 @@ export default function WorkflowPage() {
       </header>
 
       {/* Main Studio Viewport */}
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 py-6">
-        <div className="mb-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <main className="mx-auto w-full max-w-[1880px] flex-1 px-4 sm:px-6 lg:px-8 py-4">
+        <div className="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
             <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight text-zinc-900">
               Agent Workflow Studio
@@ -85,8 +85,8 @@ export default function WorkflowPage() {
       </main>
 
       {/* Footer */}
-      <footer className="mt-8 border-t border-zinc-200/80 bg-white/70 py-4 text-xs text-zinc-500">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 sm:px-6">
+      <footer className="mt-6 border-t border-zinc-200/80 bg-white/70 py-3 text-xs text-zinc-500">
+        <div className="mx-auto flex w-full max-w-[1880px] items-center justify-between px-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-zinc-800">AgentBrowse Studio</span>
             <span>— Autonomous Browser Automation Runtime</span>

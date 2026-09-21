@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ReactFlow,
   Background,
@@ -19,10 +19,10 @@ import {
   type ReactFlowInstance,
   type EdgeChange,
   applyEdgeChanges,
-} from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
-import { WorkflowNode } from "./WorkflowNode";
-import type { WorkflowNodeType, NodeTemplate } from "./types";
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import { WorkflowNode } from './WorkflowNode';
+import type { WorkflowNodeType, NodeTemplate } from './types';
 
 // Must be defined outside component to prevent React Flow re-mounting all nodes on every render
 const NODE_TYPES: NodeTypes = {
@@ -31,7 +31,7 @@ const NODE_TYPES: NodeTypes = {
 
 const DEFAULT_EDGE_OPTIONS: DefaultEdgeOptions = {
   animated: true,
-  style: { stroke: "#71717a", strokeWidth: 2 },
+  style: { stroke: '#71717a', strokeWidth: 2 },
 };
 
 const FIT_VIEW_OPTIONS: FitViewOptions = {
@@ -46,7 +46,7 @@ interface WorkflowCanvasProps {
   onSaveWorkflow?: (nodes: WorkflowNodeType[], edges: Edge[]) => void;
   onGraphChange?: (nodes: WorkflowNodeType[], edges: Edge[]) => void;
   isSaving?: boolean;
-  saveStatus?: "idle" | "saving" | "saved" | "error";
+  saveStatus?: 'idle' | 'saving' | 'saved' | 'error';
   lastSavedAt?: Date | null;
 }
 
@@ -58,11 +58,14 @@ export function WorkflowCanvas({
   onSaveWorkflow,
   onGraphChange,
   isSaving = false,
-  saveStatus = "idle",
+  saveStatus = 'idle',
   lastSavedAt = null,
 }: WorkflowCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const [rfInstance, setRfInstance] = useState<ReactFlowInstance<WorkflowNodeType, Edge> | null>(null);
+  const [rfInstance, setRfInstance] = useState<ReactFlowInstance<
+    WorkflowNodeType,
+    Edge
+  > | null>(null);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -70,14 +73,31 @@ export function WorkflowCanvas({
   const prevNodesLengthRef = useRef(initialNodes.length);
   const prevWfIdRef = useRef(workflowId);
 
-  // Sync nodes only when workflow changes or node count changes (add/delete)
+  // Sync nodes when workflow changes, node count changes, or node data updates
   React.useEffect(() => {
-    if (prevWfIdRef.current !== workflowId || prevNodesLengthRef.current !== initialNodes.length) {
-      setNodes(initialNodes);
-      setEdges(initialEdges);
-      prevWfIdRef.current = workflowId;
-      prevNodesLengthRef.current = initialNodes.length;
-    }
+    setNodes((currentNodes) => {
+      // If workflow changed or length changed, reset completely
+      if (
+        prevWfIdRef.current !== workflowId ||
+        currentNodes.length !== initialNodes.length
+      ) {
+        prevWfIdRef.current = workflowId;
+        prevNodesLengthRef.current = initialNodes.length;
+        return initialNodes;
+      }
+
+      // If data updated (like actionSummary, title, status), merge updated data into currentNodes
+      // while preserving current dragging coordinates
+      return currentNodes.map((cn) => {
+        const matching = initialNodes.find((inNode) => inNode.id === cn.id);
+        if (!matching) return cn;
+        return {
+          ...cn,
+          data: { ...cn.data, ...matching.data },
+        };
+      });
+    });
+    setEdges(initialEdges);
   }, [workflowId, initialNodes, initialEdges, setNodes, setEdges]);
 
   // Handle connection
@@ -87,14 +107,14 @@ export function WorkflowCanvas({
         {
           ...params,
           animated: true,
-          style: { stroke: "#10b981", strokeWidth: 2 },
+          style: { stroke: '#10b981', strokeWidth: 2 },
         },
-        edges
+        edges,
       );
       setEdges(nextEdges);
       onGraphChange?.(nodes as WorkflowNodeType[], nextEdges);
     },
-    [edges, nodes, onGraphChange, setEdges]
+    [edges, nodes, onGraphChange, setEdges],
   );
 
   // Handle node drag stop - notifies parent of new node positions
@@ -106,25 +126,25 @@ export function WorkflowCanvas({
   const handleEdgesChange = useCallback(
     (changes: EdgeChange<Edge>[]) => {
       onEdgesChange(changes);
-      const hasRemoval = changes.some((c) => c.type === "remove");
+      const hasRemoval = changes.some((c) => c.type === 'remove');
       if (hasRemoval) {
         const nextEdges = applyEdgeChanges(changes, edges);
         onGraphChange?.(nodes as WorkflowNodeType[], nextEdges);
       }
     },
-    [nodes, edges, onEdgesChange, onGraphChange]
+    [nodes, edges, onEdgesChange, onGraphChange],
   );
 
   // HTML5 Drag and Drop handlers from NodePalette
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
-    event.dataTransfer.dropEffect = "copy";
+    event.dataTransfer.dropEffect = 'copy';
   }, []);
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
       event.preventDefault();
-      const raw = event.dataTransfer.getData("application/agentbrowse-node");
+      const raw = event.dataTransfer.getData('application/agentbrowse-node');
       if (!raw) return;
 
       try {
@@ -148,7 +168,7 @@ export function WorkflowCanvas({
         const nodeId = `node-${Date.now()}`;
         const newNode: WorkflowNodeType = {
           id: nodeId,
-          type: "workflowStep",
+          type: 'workflowStep',
           position,
           data: {
             stepNumber,
@@ -157,11 +177,21 @@ export function WorkflowCanvas({
             badge: template.badge,
             description: template.description,
             actionSummary: template.actionSummary,
-            url: "https://example.com",
-            status: "idle",
+            url: '',
+            status: 'idle',
             metrics: template.defaultMetrics,
-            logLines: template.defaultLogs,
+            logLines: template.defaultLogs || [],
             archetype: template.archetype,
+            emailProvider:
+              template.emailProvider ||
+              (template.archetype === 'email'
+                ? template.defaultMetrics
+                    ?.find((m) => m.label.toLowerCase() === 'provider')
+                    ?.value.toLowerCase()
+                    .includes('nodemailer')
+                  ? 'nodemailer'
+                  : 'resend'
+                : undefined),
             timeoutMs: 5000,
             isPremium: template.isPremium ?? false,
           },
@@ -173,17 +203,17 @@ export function WorkflowCanvas({
         onSelectNode(newNode);
         onGraphChange?.(updatedNodes as WorkflowNodeType[], edges);
       } catch (err) {
-        console.error("Failed to parse dropped template:", err);
+        console.error('Failed to parse dropped template:', err);
       }
     },
-    [nodes, edges, rfInstance, onSelectNode, onGraphChange, setNodes]
+    [nodes, edges, rfInstance, onSelectNode, onGraphChange, setNodes],
   );
 
   const handleNodeClick = useCallback(
     (_: React.MouseEvent, node: Node) => {
       onSelectNode(node as WorkflowNodeType);
     },
-    [onSelectNode]
+    [onSelectNode],
   );
 
   const handlePaneClick = useCallback(() => {
@@ -195,7 +225,7 @@ export function WorkflowCanvas({
       ref={wrapperRef}
       onDragOver={onDragOver}
       onDrop={onDrop}
-      className="relative h-[560px] w-full rounded-2xl border border-zinc-200/90 bg-zinc-50/50 overflow-hidden shadow-xs"
+      className="relative h-[calc(100vh-190px)] min-h-[570px] w-full rounded-2xl border border-zinc-200/90 bg-zinc-50/50 overflow-hidden shadow-xs"
     >
       <ReactFlow<WorkflowNodeType, Edge>
         nodes={nodes}
@@ -233,9 +263,9 @@ export function WorkflowCanvas({
         <MiniMap
           nodeStrokeWidth={2}
           nodeColor={(n) => {
-            if (n.data?.status === "running") return "#10b981";
-            if (n.data?.status === "completed") return "#71717a";
-            return "#e4e4e7";
+            if (n.data?.status === 'running') return '#10b981';
+            if (n.data?.status === 'completed') return '#71717a';
+            return '#e4e4e7';
           }}
           className="!rounded-xl !border !border-zinc-200/80 !bg-white/95 !shadow-sm overflow-hidden"
           maskColor="rgba(244, 244, 245, 0.7)"
@@ -245,10 +275,15 @@ export function WorkflowCanvas({
       </ReactFlow>
 
       {/* Floating Canvas Helper Badge (Top-Left) */}
-      <div className="absolute top-3 left-3 z-10 flex items-center gap-2 rounded-full border border-zinc-200/80 bg-white/90 backdrop-blur-xs px-3 py-1 text-xs text-zinc-600 shadow-2xs">
-        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-        <span className="font-semibold text-zinc-800">Interactive Canvas:</span>
-        <span>Drag nodes to position, connect handles, or drag from palette</span>
+      <div className="absolute top-3 left-3 z-10 flex items-center gap-2 rounded-full border border-zinc-200/80 bg-white/90 backdrop-blur-xs px-3 py-1 text-xs text-zinc-600 shadow-2xs max-w-[calc(100%-200px)]">
+        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
+        <span className="font-semibold text-zinc-800 shrink-0">
+          Interactive Canvas:
+        </span>
+        <span className="truncate hidden xl:inline">
+          Drag nodes to position, connect handles, or drag from palette
+        </span>
+        <span className="truncate inline xl:hidden">Drag & connect nodes</span>
       </div>
 
       {/* Floating Canvas Save & Status Badge (Top-Right) */}
@@ -264,11 +299,11 @@ export function WorkflowCanvas({
           onClick={() => onSaveWorkflow?.(nodes as WorkflowNodeType[], edges)}
           disabled={isSaving}
           className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold shadow-sm transition-all cursor-pointer ${
-            saveStatus === "saved"
-              ? "bg-emerald-600 text-white"
-              : saveStatus === "error"
-              ? "bg-red-600 text-white"
-              : "bg-zinc-900 text-white hover:bg-zinc-800 active:scale-98"
+            saveStatus === 'saved'
+              ? 'bg-emerald-600 text-white'
+              : saveStatus === 'error'
+                ? 'bg-red-600 text-white'
+                : 'bg-zinc-900 text-white hover:bg-zinc-800 active:scale-98'
           } disabled:opacity-60`}
           title="Save current nodes and edges to PostgreSQL workflow table"
         >
@@ -277,12 +312,12 @@ export function WorkflowCanvas({
               <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
               <span>Saving...</span>
             </>
-          ) : saveStatus === "saved" ? (
+          ) : saveStatus === 'saved' ? (
             <>
               <span className="text-emerald-200">✓</span>
               <span>Saved to DB!</span>
             </>
-          ) : saveStatus === "error" ? (
+          ) : saveStatus === 'error' ? (
             <>
               <span>✕</span>
               <span>Failed to Save</span>
@@ -298,9 +333,11 @@ export function WorkflowCanvas({
 
       {/* Node and Edge Counter Pill (Bottom-Left) */}
       <div className="absolute bottom-3 left-3 z-10 hidden sm:flex items-center gap-2 rounded-lg border border-zinc-200/80 bg-white/90 backdrop-blur-xs px-2.5 py-1 text-[11px] font-mono text-zinc-600 shadow-2xs">
-        <span className="font-semibold text-zinc-800">{nodes.length}</span> nodes
+        <span className="font-semibold text-zinc-800">{nodes.length}</span>{' '}
+        nodes
         <span>•</span>
-        <span className="font-semibold text-zinc-800">{edges.length}</span> edges
+        <span className="font-semibold text-zinc-800">{edges.length}</span>{' '}
+        edges
       </div>
     </div>
   );

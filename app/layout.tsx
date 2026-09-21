@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { TrpcProvider } from "@/lib/trpc/Provider";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -29,7 +30,9 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-zinc-100 text-zinc-900 selection:bg-zinc-900 selection:text-white">
-        <TrpcProvider>{children}</TrpcProvider>
+        <TrpcProvider>
+          <TooltipProvider>{children}</TooltipProvider>
+        </TrpcProvider>
       </body>
     </html>
   );

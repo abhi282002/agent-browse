@@ -13,7 +13,10 @@ export type NodeArchetype =
   | "news_gather"
   | "news_extraction"
   | "news_summary"
-  | "email";
+  | "email"
+  | "open_url";
+
+export type EmailProviderType = 'resend' | 'nodemailer';
 
 export interface WorkflowNodeData extends Record<string, unknown> {
   stepNumber: number;
@@ -27,6 +30,7 @@ export interface WorkflowNodeData extends Record<string, unknown> {
   metrics: { label: string; value: string }[];
   logLines: string[];
   archetype?: NodeArchetype;
+  emailProvider?: EmailProviderType;
   selector?: string;
   payload?: string;
   timeoutMs?: number;
@@ -40,7 +44,7 @@ export interface WorkflowBlueprint {
   name: string;
   description: string;
   category: string;
-  targetUrl: string;
+  targetUrl?: string;
   status: "idle" | "running" | "completed" | "paused";
   createdAt: string;
   aiModel?: string;
@@ -58,6 +62,8 @@ export interface NodeTemplate {
   description: string;
   actionSummary: string;
   isPremium?: boolean;
+  emailProvider?: EmailProviderType;
   defaultMetrics: { label: string; value: string }[];
   defaultLogs: string[];
 }
+

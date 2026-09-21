@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { trpc } from "@/lib/trpc/client";
-import type { NodeTemplate } from "../types";
+import type { NodeTemplate, EmailProviderType } from "../types";
 import { BotIcon, SparklesIcon } from "@/components/ui/icons";
 
 interface AdminNodeManagerModalProps {
@@ -18,11 +18,42 @@ export function AdminNodeManagerModal({ isOpen, onClose }: AdminNodeManagerModal
   const [title, setTitle] = useState("");
   const [category, setCategory] = useState("Custom Engine");
   const [badge, setBadge] = useState("Custom");
-  const [archetype, setArchetype] = useState("action");
+  const [archetype, setArchetype] = useState("open_url");
+  const [emailProvider, setEmailProvider] = useState<EmailProviderType>("resend");
   const [description, setDescription] = useState("");
   const [actionSummary, setActionSummary] = useState("");
   const [isPremium, setIsPremium] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const applyEmailDefaults = (provider: EmailProviderType) => {
+    setEmailProvider(provider);
+    if (provider === "nodemailer") {
+      setTitle("Email Notification (Nodemailer SMTP)");
+      setCategory("Notification & Alert");
+      setBadge("SMTP Mail");
+      setActionSummary("Dispatches email briefing via Nodemailer SMTP transport");
+      setDescription("Sends curated news briefs or workflow execution notifications to the recipient using a custom Nodemailer SMTP transport.");
+    } else {
+      setTitle("Email Notification (Resend)");
+      setCategory("Notification & Alert");
+      setBadge("Resend API");
+      setActionSummary("Dispatches email briefing via Resend Transactional Email API");
+      setDescription("Sends curated news briefs or workflow execution notifications to the recipient using the Resend cloud transactional email engine.");
+    }
+  };
+
+  const handleArchetypeChange = (val: string) => {
+    setArchetype(val);
+    if (val === "open_url" && (!title || title === "Turnstile & Cloudflare Solver" || title.includes("Email"))) {
+      setTitle("Open URL");
+      setCategory("Browser Navigation");
+      setBadge("Launch");
+      setActionSummary("Navigate browser session to target URL and wait for page load");
+      setDescription("Dedicated browser navigation node that initializes the CDP session and loads the target web address.");
+    } else if (val === "email") {
+      applyEmailDefaults(emailProvider);
+    }
+  };
 
   const createMutation = trpc.nodeTemplate.create.useMutation({
     onSuccess: () => {
@@ -51,7 +82,8 @@ export function AdminNodeManagerModal({ isOpen, onClose }: AdminNodeManagerModal
     setTitle("");
     setCategory("Custom Engine");
     setBadge("Custom");
-    setArchetype("action");
+    setArchetype("open_url");
+    setEmailProvider("resend");
     setDescription("");
     setActionSummary("");
     setIsPremium(false);
@@ -73,14 +105,39 @@ export function AdminNodeManagerModal({ isOpen, onClose }: AdminNodeManagerModal
       return;
     }
 
+    const defaultMetrics =
+      archetype === "email"
+        ? [
+            {
+              label: "Provider",
+              value: emailProvider === "nodemailer" ? "Nodemailer (SMTP)" : "Resend API",
+            },
+            {
+              label: "Protocol",
+              value: emailProvider === "nodemailer" ? "SMTP" : "HTTPS API",
+            },
+          ]
+        : undefined;
+
+    const defaultLogs =
+      archetype === "email"
+        ? [
+            `Initialized ${emailProvider === "nodemailer" ? "Nodemailer SMTP" : "Resend API"} dispatcher`,
+            "Compiled executive email briefing",
+          ]
+        : undefined;
+
     createMutation.mutate({
       title: title.trim(),
       category: category.trim(),
       badge: badge.trim(),
       archetype,
+      emailProvider: archetype === "email" ? emailProvider : undefined,
       description: description.trim(),
       actionSummary: actionSummary.trim(),
       isPremium,
+      defaultMetrics,
+      defaultLogs,
     });
   };
 
@@ -197,9 +254,10 @@ export function AdminNodeManagerModal({ isOpen, onClose }: AdminNodeManagerModal
                 </label>
                 <select
                   value={archetype}
-                  onChange={(e) => setArchetype(e.target.value)}
+                  onChange={(e) => handleArchetypeChange(e.target.value)}
                   className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-1.5 text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none cursor-pointer"
                 >
+                  <option value="open_url">Open URL (Browser Navigation / Launch URL)</option>
                   <option value="navigation">Navigation (URL &amp; Network)</option>
                   <option value="grounding">Grounding (Vision &amp; Accessibility)</option>
                   <option value="action">Action (Clicks &amp; Keystrokes)</option>
@@ -209,10 +267,37 @@ export function AdminNodeManagerModal({ isOpen, onClose }: AdminNodeManagerModal
                   <option value="summarization">AI Summarization (Gemini &amp; Grok)</option>
                   <option value="news_gather">Browser News Collector (Autonomous Tabs &amp; Headlines)</option>
                   <option value="news_summary">News Intelligence (Categorized Briefing)</option>
-                  <option value="email">Email Notification (Resend)</option>
+                  <option value="email">Email Notification (Resend / Nodemailer)</option>
                 </select>
               </div>
             </div>
+
+            {/* Email Provider Selector when Archetype is Email */}
+            {archetype === "email" && (
+              <div className="rounded-xl border border-blue-200 bg-blue-50/70 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <label className="font-semibold text-blue-950 block">
+                    Email Provider Service
+                  </label>
+                  <span className="text-[10px] font-mono bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full border border-blue-200 font-bold">
+                    {emailProvider === "nodemailer" ? "SMTP Transport" : "Cloud REST API"}
+                  </span>
+                </div>
+                <select
+                  value={emailProvider}
+                  onChange={(e) => applyEmailDefaults(e.target.value as EmailProviderType)}
+                  className="w-full rounded-xl border border-blue-200 bg-white px-3 py-1.5 text-zinc-900 focus:border-blue-500 focus:outline-none cursor-pointer font-medium"
+                >
+                  <option value="resend">Resend API (Cloud Transactional Email)</option>
+                  <option value="nodemailer">Nodemailer (SMTP Server / Custom Gateway)</option>
+                </select>
+                <p className="text-[11px] text-blue-800 leading-relaxed">
+                  {emailProvider === "nodemailer"
+                    ? "Sends emails via standard SMTP credentials (SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS). Gracefully simulates dispatch if credentials are unset."
+                    : "Sends emails via Resend official transactional REST API (RESEND_API_KEY, RESEND_FROM_EMAIL). Gracefully simulates dispatch if credentials are unset."}
+                </p>
+              </div>
+            )}
 
             <div>
               <label className="font-semibold text-zinc-700 block mb-1">
@@ -309,6 +394,11 @@ export function AdminNodeManagerModal({ isOpen, onClose }: AdminNodeManagerModal
                       <span className="rounded bg-zinc-200/70 px-1.5 py-0.5 text-[10px] font-mono text-zinc-700">
                         {tpl.archetype}
                       </span>
+                      {tpl.archetype === "email" && (
+                        <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-bold text-sky-800 border border-sky-200">
+                          {tpl.emailProvider === "nodemailer" ? "SMTP" : "Resend"}
+                        </span>
+                      )}
                       {tpl.isPremium ? (
                         <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold text-amber-800 border border-amber-200">
                           ★ PRO

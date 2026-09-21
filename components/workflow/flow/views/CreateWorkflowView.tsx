@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { BotIcon, SparklesIcon, ChromeIcon } from "@/components/ui/icons";
+import { BotIcon, SparklesIcon } from "@/components/ui/icons";
 
 interface CreateWorkflowViewProps {
   onCancel: () => void;
@@ -9,7 +9,7 @@ interface CreateWorkflowViewProps {
     name: string;
     description: string;
     category: string;
-    targetUrl: string;
+    targetUrl?: string;
     aiModel?: string;
     sandboxEnv?: string;
   }) => void;
@@ -43,10 +43,10 @@ const BLUEPRINTS = [
   {
     id: "form",
     title: "Form Automation & Lead Qualification",
-    category: "Auth & Form",
-    description: "Fills CRM forms, verifies domain records, submits credentials, and extracts confirmation tokens.",
-    defaultUrl: "https://linkedin.com/search/results",
-    badge: "Lead Gen",
+    category: "Lead Gen",
+    description: "Populates multi-step forms, handles reCAPTCHAs, and submits authenticated payloads.",
+    defaultUrl: "https://linkedin.com",
+    badge: "Forms",
   },
 ];
 
@@ -68,7 +68,6 @@ export function CreateWorkflowView({ onCancel, onCreate }: CreateWorkflowViewPro
   const [selectedBlueprint, setSelectedBlueprint] = useState("custom");
   const [name, setName] = useState("");
   const [category, setCategory] = useState("Web Automation");
-  const [targetUrl, setTargetUrl] = useState("https://");
   const [description, setDescription] = useState("");
   const [aiModel, setAiModel] = useState("Gemini 2.5 Pro Vision");
   const [sandboxEnv, setSandboxEnv] = useState("Chromium 128 (CDP Protocol)");
@@ -78,7 +77,6 @@ export function CreateWorkflowView({ onCancel, onCreate }: CreateWorkflowViewPro
     setSelectedBlueprint(bp.id);
     setName(bp.title === "Blank Canvas" ? "" : bp.title);
     setCategory(bp.category);
-    setTargetUrl(bp.defaultUrl);
     setDescription(bp.description);
     setError(null);
   };
@@ -89,16 +87,12 @@ export function CreateWorkflowView({ onCancel, onCreate }: CreateWorkflowViewPro
       setError("Please provide a workflow name.");
       return;
     }
-    if (!targetUrl.trim() || targetUrl === "https://") {
-      setError("Please enter a valid starting URL.");
-      return;
-    }
 
     onCreate({
       name: name.trim(),
       description: description.trim(),
       category: category.trim(),
-      targetUrl: targetUrl.trim(),
+      targetUrl: "",
       aiModel,
       sandboxEnv,
     });
@@ -214,22 +208,7 @@ export function CreateWorkflowView({ onCancel, onCreate }: CreateWorkflowViewPro
           </div>
         </div>
 
-        <div>
-          <label className="text-xs font-semibold text-zinc-700 block mb-1">
-            Target Starting URL
-          </label>
-          <div className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2 focus-within:bg-white focus-within:border-zinc-900">
-            <ChromeIcon className="h-4 w-4 text-zinc-400 shrink-0" />
-            <input
-              type="url"
-              required
-              placeholder="https://example.com/target"
-              value={targetUrl}
-              onChange={(e) => setTargetUrl(e.target.value)}
-              className="w-full bg-transparent font-mono text-xs text-zinc-900 focus:outline-none"
-            />
-          </div>
-        </div>
+
 
         <div>
           <label className="text-xs font-semibold text-zinc-700 block mb-1">

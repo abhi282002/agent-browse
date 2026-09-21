@@ -49,12 +49,10 @@ export function EditWorkflowModal({
   onSave,
 }: EditWorkflowModalProps) {
   const [name, setName] = useState("");
-  const [targetUrl, setTargetUrl] = useState("");
   const [category, setCategory] = useState("Web Automation");
   const [description, setDescription] = useState("");
   const [aiModel, setAiModel] = useState("Gemini 2.5 Pro Vision");
   const [sandboxEnv, setSandboxEnv] = useState("Chromium 128 (CDP Protocol)");
-  const [updateNodeUrls, setUpdateNodeUrls] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,12 +60,10 @@ export function EditWorkflowModal({
   useEffect(() => {
     if (workflow) {
       setName(workflow.name || "");
-      setTargetUrl(workflow.targetUrl || "https://");
       setCategory(workflow.category || "Web Automation");
       setDescription(workflow.description || "");
       setAiModel(workflow.aiModel || "Gemini 2.5 Pro Vision");
       setSandboxEnv(workflow.sandboxEnv || "Chromium 128 (CDP Protocol)");
-      setUpdateNodeUrls(true);
       setError(null);
     }
   }, [workflow, isOpen]);
@@ -82,23 +78,16 @@ export function EditWorkflowModal({
       return;
     }
 
-    if (!targetUrl.trim() || targetUrl === "https://" || !targetUrl.startsWith("http")) {
-      setError("Please provide a valid starting Target URL starting with http:// or https://");
-      return;
-    }
-
     setIsSubmitting(true);
     setError(null);
 
     try {
       await onSave({
         name: name.trim(),
-        targetUrl: targetUrl.trim(),
         category: category.trim(),
         description: description.trim(),
         aiModel,
         sandboxEnv,
-        updateNodeUrls,
       });
       onClose();
     } catch (err) {
@@ -131,7 +120,7 @@ export function EditWorkflowModal({
                 </span>
               </div>
               <p className="text-xs text-zinc-500">
-                Update workflow target URL, autonomous model, and pipeline configurations.
+                Update workflow model, category, and pipeline configurations.
               </p>
             </div>
           </div>
@@ -153,39 +142,6 @@ export function EditWorkflowModal({
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Target Web URL - Priority Field */}
-          <div className="rounded-xl border border-emerald-200/80 bg-emerald-50/40 p-3.5 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-                <ChromeIcon className="h-3.5 w-3.5 text-emerald-700" />
-                <span>Target Web URL</span>
-              </label>
-              <span className="text-[10px] font-mono text-emerald-700">Required</span>
-            </div>
-            <p className="text-[11px] text-emerald-800/80">
-              The primary webpage or web application where Chromium and AI agents begin navigation.
-            </p>
-            <input
-              type="url"
-              required
-              value={targetUrl}
-              onChange={(e) => setTargetUrl(e.target.value)}
-              placeholder="https://news.ycombinator.com"
-              className="w-full rounded-xl border border-emerald-300/80 bg-white px-3.5 py-2 text-xs font-mono text-zinc-900 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600 focus:outline-none shadow-2xs"
-            />
-
-            <label className="flex items-center gap-2 pt-1 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={updateNodeUrls}
-                onChange={(e) => setUpdateNodeUrls(e.target.checked)}
-                className="h-3.5 w-3.5 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500"
-              />
-              <span className="text-[11px] text-zinc-600">
-                Update existing step nodes matching the previous URL to this new Target URL
-              </span>
-            </label>
-          </div>
 
           {/* Workflow Name & Category */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

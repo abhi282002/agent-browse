@@ -1,7 +1,7 @@
-import path from "path";
-import fs from "fs";
-import { executeNode } from "./nodeRegistry";
-import type { Stagehand, StagehandBrowser } from "@browserbasehq/stagehand";
+import path from 'path';
+import fs from 'fs';
+import { executeNode } from './nodeRegistry';
+import type { Stagehand, StagehandBrowser } from '@browserbasehq/stagehand';
 
 export function ensureStagehandExtensionPath(): string | undefined {
   if (
@@ -12,10 +12,19 @@ export function ensureStagehandExtensionPath(): string | undefined {
   }
 
   const candidatePaths = [
-    path.resolve(process.cwd(), "node_modules/@browserbasehq/stagehand/dist/assets/stagehand-extension.zip"),
-    path.resolve(__dirname, "../../node_modules/@browserbasehq/stagehand/dist/assets/stagehand-extension.zip"),
-    path.resolve(__dirname, "../node_modules/@browserbasehq/stagehand/dist/assets/stagehand-extension.zip"),
-    "C:\\agentbrowse\\node_modules\\@browserbasehq\\stagehand\\dist\\assets\\stagehand-extension.zip",
+    path.resolve(
+      process.cwd(),
+      'node_modules/@browserbasehq/stagehand/dist/assets/stagehand-extension.zip',
+    ),
+    path.resolve(
+      __dirname,
+      '../../node_modules/@browserbasehq/stagehand/dist/assets/stagehand-extension.zip',
+    ),
+    path.resolve(
+      __dirname,
+      '../node_modules/@browserbasehq/stagehand/dist/assets/stagehand-extension.zip',
+    ),
+    'C:\\agentbrowse\\node_modules\\@browserbasehq\\stagehand\\dist\\assets\\stagehand-extension.zip',
   ];
 
   for (const candidate of candidatePaths) {
@@ -33,7 +42,7 @@ ensureStagehandExtensionPath();
 
 async function getStagehandModule() {
   ensureStagehandExtensionPath();
-  return await import("@browserbasehq/stagehand");
+  return await import('@browserbasehq/stagehand');
 }
 
 export interface BrowserbaseStatus {
@@ -47,7 +56,7 @@ export interface StepExecutionResult {
   stepId: string;
   stepNumber: number;
   title: string;
-  status: "completed" | "failed" | "skipped";
+  status: 'completed' | 'failed' | 'skipped';
   durationMs: number;
   logs: string[];
   output?: Record<string, unknown>;
@@ -57,10 +66,10 @@ export interface StepExecutionResult {
 export interface WorkflowExecutionResult {
   workflowId: string;
   workflowName: string;
-  targetUrl: string;
+  targetUrl?: string;
   sessionId: string;
   liveViewUrl?: string;
-  status: "completed" | "failed";
+  status: 'completed' | 'failed';
   startedAt: string;
   completedAt: string;
   totalSteps: number;
@@ -80,14 +89,14 @@ export class BrowserbaseService {
       isConfigured: Boolean(apiKey && apiKey.length > 5),
       apiKeyPresent: Boolean(apiKey),
       projectIdPresent: Boolean(projectId),
-      provider: "Browserbase Cloud Chromium (CDP & Stagehand V4)",
+      provider: 'Browserbase Cloud Chromium (CDP & Stagehand V4)',
     };
   }
 
   /**
    * Launch a standalone browser sandbox session on Browserbase
    */
-  static async createSandboxSession(targetUrl: string = "https://example.com") {
+  static async createSandboxSession(targetUrl: string = 'https://example.com') {
     const status = this.getStatus();
 
     if (!status.isConfigured) {
@@ -97,9 +106,10 @@ export class BrowserbaseService {
         sessionId: mockSessionId,
         liveViewUrl: `https://browserbase.com/sessions/${mockSessionId}`,
         targetUrl,
-        status: "connected",
-        mode: "simulation" as const,
-        message: "Simulated sandbox active. Set BROWSERBASE_API_KEY in .env for live cloud Chromium.",
+        status: 'connected',
+        mode: 'simulation' as const,
+        message:
+          'Simulated sandbox active. Set BROWSERBASE_API_KEY in .env for live cloud Chromium.',
       };
     }
 
@@ -115,11 +125,12 @@ export class BrowserbaseService {
 
       const [page] = await browser.context.pages();
       if (page) {
-        await page.goto(targetUrl, { waitUntil: "domcontentloaded" });
+        await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
       }
 
       // Safe session details
-      const sessionId = (browser as unknown as { id?: string; sessionId?: string }).sessionId ||
+      const sessionId =
+        (browser as unknown as { id?: string; sessionId?: string }).sessionId ||
         (browser as unknown as { id?: string }).id ||
         `bb-live-${Date.now().toString(36)}`;
 
@@ -127,14 +138,19 @@ export class BrowserbaseService {
         sessionId,
         liveViewUrl: `https://browserbase.com/sessions/${sessionId}`,
         targetUrl,
-        status: "active",
-        mode: "live" as const,
-        message: "Browserbase Cloud Chromium VM allocated with CDP streaming.",
+        status: 'active',
+        mode: 'live' as const,
+        message: 'Browserbase Cloud Chromium VM allocated with CDP streaming.',
       };
     } catch (error) {
-      console.error("[BrowserbaseService] Error launching cloud sandbox:", error);
+      console.error(
+        '[BrowserbaseService] Error launching cloud sandbox:',
+        error,
+      );
       throw new Error(
-        error instanceof Error ? error.message : "Failed to launch Browserbase cloud browser"
+        error instanceof Error
+          ? error.message
+          : 'Failed to launch Browserbase cloud browser',
       );
     }
   }
@@ -145,7 +161,7 @@ export class BrowserbaseService {
   static async executeWorkflow(payload: {
     workflowId: string;
     workflowName: string;
-    targetUrl: string;
+    targetUrl?: string;
     aiModel?: string;
     userEmail?: string;
     nodes: Array<{
@@ -171,11 +187,11 @@ export class BrowserbaseService {
         stepId: node.id,
         stepNumber: node.data.stepNumber,
         title: node.data.title,
-        status: "completed",
+        status: 'completed',
         durationMs: Math.floor(Math.random() * 400) + 300,
         logs: [
           `Allocated simulated worker for "${node.data.title}"`,
-          `User Context: ${payload.userEmail || "anonymous"}`,
+          `User Context: ${payload.userEmail || 'anonymous'}`,
           `Target: ${node.data.url || payload.targetUrl}`,
           `Action: ${node.data.actionSummary}`,
           `Completed step successfully.`,
@@ -189,7 +205,7 @@ export class BrowserbaseService {
         targetUrl: payload.targetUrl,
         sessionId: mockSessionId,
         liveViewUrl: `https://browserbase.com/sessions/${mockSessionId}`,
-        status: "completed",
+        status: 'completed',
         startedAt: startTime,
         completedAt: new Date().toISOString(),
         totalSteps: payload.nodes.length,
@@ -212,16 +228,16 @@ export class BrowserbaseService {
         },
       });
 
-      stagehand = await Stagehand.create({ browser });
+      stagehand = await Stagehand.create({
+        browser,
+        domSettleTimeoutMs: 10_000,
+        selfHeal: true,
+      });
+
       const [page] = await browser.context.pages();
 
       if (!page) {
-        throw new Error("Browserbase launched without an active page");
-      }
-
-      // Initial page navigation
-      if (payload.targetUrl) {
-        await page.goto(payload.targetUrl, { waitUntil: "domcontentloaded" });
+        throw new Error('Browserbase launched without an active page');
       }
 
       const stepResults: StepExecutionResult[] = [];
@@ -233,14 +249,20 @@ export class BrowserbaseService {
         const stepNum = i + 1;
         const totalSteps = payload.nodes.length;
         const stepStart = Date.now();
-        console.log(`[Workflow] Step ${stepNum}/${totalSteps}: "${node.data.title}" starting...`);
+        console.log(
+          `[Workflow] Step ${stepNum}/${totalSteps}: "${node.data.title}" starting...`,
+        );
         const logs: string[] = [`Starting step: ${node.data.title}`];
 
         try {
+          // Dynamically resolve the active page in case a prior step opened a new tab, redirected, or navigated
+          const activePage =
+            (await browser.context.activePage().catch(() => undefined)) || page;
+
           // Execute node using the modular Node Registry with accumulated outputs
           const nodeExecution = await executeNode(node, {
             stagehand,
-            page,
+            page: activePage,
             targetUrl: payload.targetUrl,
             aiModel: payload.aiModel,
             userEmail: payload.userEmail,
@@ -255,27 +277,32 @@ export class BrowserbaseService {
           }
 
           const durationMs = Date.now() - stepStart;
-          console.log(`[Workflow] Step ${stepNum}/${totalSteps}: "${node.data.title}" completed (${durationMs}ms)`);
+          console.log(
+            `[Workflow] Step ${stepNum}/${totalSteps}: "${node.data.title}" completed (${durationMs}ms)`,
+          );
 
           stepResults.push({
             stepId: node.id,
             stepNumber: node.data.stepNumber,
             title: node.data.title,
-            status: "completed",
+            status: 'completed',
             durationMs,
             logs,
             output: nodeExecution.output,
           });
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : String(err);
-          console.error(`[Workflow] Step ${stepNum}/${totalSteps}: "${node.data.title}" failed:`, errMsg);
+          console.error(
+            `[Workflow] Step ${stepNum}/${totalSteps}: "${node.data.title}" failed:`,
+            errMsg,
+          );
           logs.push(`Step warning/error: ${errMsg}`);
           // Continue execution with graceful logging
           stepResults.push({
             stepId: node.id,
             stepNumber: node.data.stepNumber,
             title: node.data.title,
-            status: "failed",
+            status: 'failed',
             durationMs: Date.now() - stepStart,
             logs,
             error: errMsg,
@@ -283,8 +310,7 @@ export class BrowserbaseService {
         }
       }
 
-      const sessionId = browser?.sessionId ||
-        `bb-${Date.now().toString(36)}`;
+      const sessionId = browser?.sessionId || `bb-${Date.now().toString(36)}`;
 
       return {
         workflowId: payload.workflowId,
@@ -292,11 +318,14 @@ export class BrowserbaseService {
         targetUrl: payload.targetUrl,
         sessionId,
         liveViewUrl: `https://browserbase.com/sessions/${sessionId}`,
-        status: stepResults.some((s) => s.status === "failed") ? "failed" : "completed",
+        status: stepResults.some((s) => s.status === 'failed')
+          ? 'failed'
+          : 'completed',
         startedAt: startTime,
         completedAt: new Date().toISOString(),
         totalSteps: payload.nodes.length,
-        successfulSteps: stepResults.filter((s) => s.status === "completed").length,
+        successfulSteps: stepResults.filter((s) => s.status === 'completed')
+          .length,
         steps: stepResults,
       };
     } finally {

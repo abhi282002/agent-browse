@@ -15,6 +15,7 @@ import { executeSummarizationNode } from './nodes/summarizationNode';
 import { executeNewsGatherNode } from './nodes/newsGatherNode';
 import { executeNewsSummarizationNode } from './nodes/newsSummarizationNode';
 import { executeEmailNode } from './nodes/emailNode';
+import { executeOpenUrlNode } from './nodes/openUrlNode';
 
 export type {
   WorkflowExecutionNode,
@@ -34,12 +35,14 @@ export {
   executeNewsGatherNode,
   executeNewsSummarizationNode,
   executeEmailNode,
+  executeOpenUrlNode,
 };
 
 /**
  * Archetype mapping registry
  */
 export const NODE_REGISTRY: Record<NodeArchetype | string, NodeHandler> = {
+  open_url: executeOpenUrlNode,
   navigation: executeNavigationNode,
   grounding: executeGroundingNode,
   action: executeActionNode,
@@ -60,20 +63,6 @@ export async function executeNode(
   node: WorkflowExecutionNode,
   ctx: NodeExecutionContext,
 ): Promise<NodeExecutionOutput> {
-  const preLogs: string[] = [];
-
-  // If node defines a custom URL different from targetUrl, perform page navigation first
-  if (
-    node.data.url &&
-    node.data.url !== ctx.targetUrl &&
-    node.data.url.startsWith('http')
-  ) {
-    if (ctx.page) {
-      await ctx.page.goto(node.data.url, { waitUntil: 'domcontentloaded' });
-      preLogs.push(`Navigated to ${node.data.url}`);
-    }
-  }
-
   const archetypeKey = (node.data.archetype || 'action').toLowerCase();
   const handler = NODE_REGISTRY[archetypeKey] || NODE_REGISTRY.action;
 
@@ -91,6 +80,6 @@ export async function executeNode(
 
   return {
     output: result.output,
-    logs: [...preLogs, ...result.logs],
+    logs: result.logs,
   };
 }

@@ -1,8 +1,18 @@
-"use client";
+'use client';
 
-import React, { useState } from "react";
-import type { WorkflowNodeType, WorkflowNodeData, NodeArchetype } from "../types";
-import { TerminalIcon, CheckIcon } from "@/components/ui/icons";
+import { useState } from 'react';
+import type {
+  WorkflowNodeType,
+  WorkflowNodeData,
+  NodeArchetype,
+  EmailProviderType,
+} from '../types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { TerminalIcon, CheckIcon } from '@/components/ui/icons';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface NodeConfigDrawerProps {
   node: WorkflowNodeType | null;
@@ -10,6 +20,19 @@ interface NodeConfigDrawerProps {
   onClose: () => void;
   onSave: (nodeId: string, updatedData: Partial<WorkflowNodeData>) => void;
   onDelete: (nodeId: string) => void;
+}
+
+interface NodeFormData {
+  title: string;
+  category: string;
+  badge: string;
+  archetype: NodeArchetype;
+  emailProvider?: EmailProviderType;
+  url: string;
+  selector: string;
+  actionSummary: string;
+  description: string;
+  timeoutMs: number;
 }
 
 function NodeConfigDrawerContent({
@@ -23,233 +46,354 @@ function NodeConfigDrawerContent({
   onSave: (nodeId: string, updatedData: Partial<WorkflowNodeData>) => void;
   onDelete: (nodeId: string) => void;
 }) {
-  const [title, setTitle] = useState(node.data.title || "");
-  const [category, setCategory] = useState(node.data.category || "");
-  const [badge, setBadge] = useState(node.data.badge || "");
-  const [archetype, setArchetype] = useState<NodeArchetype>(node.data.archetype || "action");
-  const [url, setUrl] = useState(node.data.url || "");
-  const [selector, setSelector] = useState(node.data.selector || "");
-  const [actionSummary, setActionSummary] = useState(node.data.actionSummary || "");
-  const [description, setDescription] = useState(node.data.description || "");
-  const [timeoutMs, setTimeoutMs] = useState(node.data.timeoutMs || 5000);
+  const [formData, setFormData] = useState<NodeFormData>(() => {
+    const rawProvider =
+      node.data.emailProvider ||
+      node.data.metrics?.find((m) => m.label.toLowerCase() === 'provider')?.value;
+    const initialEmailProvider: EmailProviderType =
+      rawProvider?.toLowerCase().includes('nodemailer') ||
+      rawProvider?.toLowerCase().includes('smtp')
+        ? 'nodemailer'
+        : 'resend';
+
+    return {
+      title: node.data.title || '',
+      category: node.data.category || '',
+      badge: node.data.badge || '',
+      archetype: node.data.archetype || 'action',
+      emailProvider:
+        node.data.archetype === 'email' ? initialEmailProvider : undefined,
+      url: node.data.url || '',
+      selector: node.data.selector || '',
+      actionSummary: node.data.actionSummary || '',
+      description: node.data.description || '',
+      timeoutMs: node.data.timeoutMs || 5000,
+    };
+  });
   const [savedSuccess, setSavedSuccess] = useState(false);
+
+  const updateField = <K extends keyof NodeFormData>(
+    field: K,
+    value: NodeFormData[K],
+  ) => {
+    setFormData((prev) => {
+      const updated = { ...prev, [field]: value };
+      if (field === 'archetype' && value === 'email' && !updated.emailProvider) {
+        updated.emailProvider = 'resend';
+      }
+      return updated;
+    });
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const metrics = node.data.metrics ? [...node.data.metrics] : [];
+
+    if (formData.archetype === 'email' && formData.emailProvider) {
+      const providerLabel =
+        formData.emailProvider === 'nodemailer'
+          ? 'Nodemailer (SMTP)'
+          : 'Resend API';
+      const providerIdx = metrics.findIndex(
+        (m) => m.label.toLowerCase() === 'provider',
+      );
+      if (providerIdx >= 0) {
+        metrics[providerIdx] = { ...metrics[providerIdx], value: providerLabel };
+      } else {
+        metrics.unshift({ label: 'Provider', value: providerLabel });
+      }
+    }
+
     onSave(node.id, {
-      title,
-      category,
-      badge,
-      archetype,
-      url,
-      selector,
-      actionSummary,
-      description,
-      timeoutMs,
+      ...formData,
+      metrics,
+      actionSummary:
+        formData.actionSummary || `Executed ${formData.title} heuristic`,
     });
     setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2000);
+    onClose();
   };
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full sm:w-[420px] border-l border-zinc-200 bg-white p-5 shadow-2xl flex flex-col justify-between">
-      <div className="space-y-4 overflow-y-auto pr-1">
-        {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
-          <div className="flex items-center gap-2">
-            <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-zinc-900 font-mono text-xs font-bold text-white">
-              0{node.data.stepNumber}
-            </span>
-            <div>
-              <h3 className="text-sm font-bold text-zinc-900">
-                Configure Step Node
-              </h3>
-              <p className="text-[11px] text-zinc-500">
-                Node ID: <code className="font-mono">{node.id}</code>
-              </p>
-            </div>
+    <motion.div
+      initial={{ x: '-105%', opacity: 0 }}
+      animate={{ x: 0, opacity: 1 }}
+      exit={{ x: '-105%', opacity: 0 }}
+      transition={{ type: 'spring', damping: 28, stiffness: 300, mass: 0.8 }}
+      className="fixed inset-y-0 left-0 top-[max(0px,calc(100%-42rem))] z-50 w-full rounded-2xl sm:w-[420px] border-r border-zinc-200 bg-white flex flex-col shadow-2xl overflow-hidden"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-zinc-900 font-mono text-xs font-bold text-white">
+            0{node.data.stepNumber}
+          </span>
+          <div>
+            <h3 className="text-sm font-bold text-zinc-900">
+              Configure Step Node
+            </h3>
+            <p className="text-[11px] text-zinc-400 font-mono truncate max-w-50">
+              {node.id}
+            </p>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors cursor-pointer"
-          >
-            ✕
-          </button>
         </div>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={onClose}
+          aria-label="Close drawer"
+          className="cursor-pointer"
+        >
+          ✕
+        </Button>
+      </div>
 
+      {/* Scrollable form body */}
+      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
         {savedSuccess && (
           <div className="rounded-lg bg-emerald-50 p-2.5 text-xs text-emerald-800 border border-emerald-200 flex items-center gap-2">
-            <CheckIcon className="h-4 w-4 text-emerald-600" />
+            <CheckIcon className="h-4 w-4 text-emerald-600 shrink-0" />
             <span>Node configuration saved successfully!</span>
           </div>
         )}
 
+        {/* Archetype badge */}
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="text-[10px] font-mono">
+            {formData.archetype}
+          </Badge>
+          {node.data.isPremium && (
+            <Badge className="text-[10px] bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100">
+              ★ PRO
+            </Badge>
+          )}
+        </div>
+
         {/* Configuration Form */}
-        <form id="node-config-form" onSubmit={handleSubmit} className="space-y-3.5 text-xs">
-          <div>
-            <label className="font-semibold text-zinc-700 block mb-1">
+        <form
+          id="node-config-form"
+          onSubmit={handleSubmit}
+          className="space-y-3.5 text-xs"
+        >
+          {/* Step Title */}
+          <div className="flex flex-col gap-1.5">
+            <label className="font-semibold text-zinc-600 text-[11px] uppercase tracking-wide">
               Step Title
             </label>
-            <input
+            <Input
               type="text"
               required
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-1.5 text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none"
+              value={formData.title}
+              onChange={(e) => updateField('title', e.target.value)}
+              className="h-8 text-xs"
             />
           </div>
 
+          {/* Category + Badge */}
           <div className="grid grid-cols-2 gap-2.5">
-            <div>
-              <label className="font-semibold text-zinc-700 block mb-1">
+            <div className="flex flex-col gap-1.5">
+              <label className="font-semibold text-zinc-600 text-[11px] uppercase tracking-wide">
                 Category
               </label>
-              <input
+              <Input
                 type="text"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-1.5 text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none"
+                value={formData.category}
+                onChange={(e) => updateField('category', e.target.value)}
+                className="h-8 text-xs"
               />
             </div>
-            <div>
-              <label className="font-semibold text-zinc-700 block mb-1">
+            <div className="flex flex-col gap-1.5">
+              <label className="font-semibold text-zinc-600 text-[11px] uppercase tracking-wide">
                 Badge
               </label>
-              <input
+              <Input
                 type="text"
-                value={badge}
-                onChange={(e) => setBadge(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-1.5 text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none"
+                value={formData.badge}
+                onChange={(e) => updateField('badge', e.target.value)}
+                className="h-8 text-xs"
               />
             </div>
           </div>
 
-          <div>
-            <label className="font-semibold text-zinc-700 block mb-1">
+          {/* Archetype */}
+          <div className="flex flex-col gap-1.5">
+            <label className="font-semibold text-zinc-600 text-[11px] uppercase tracking-wide">
               Archetype Protocol
             </label>
             <select
-              value={archetype}
-              onChange={(e) => setArchetype(e.target.value as NodeArchetype)}
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-1.5 text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none cursor-pointer"
+              value={formData.archetype}
+              onChange={(e) =>
+                updateField('archetype', e.target.value as NodeArchetype)
+              }
+              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-xs text-zinc-900 focus:outline-none focus:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 cursor-pointer transition-colors"
             >
+              <option value="open_url">
+                Open URL (Dedicated Browser Navigate)
+              </option>
               <option value="navigation">Navigation (URL &amp; Network)</option>
-              <option value="grounding">Grounding (Vision &amp; Accessibility)</option>
+              <option value="grounding">
+                Grounding (Vision &amp; Accessibility)
+              </option>
               <option value="action">Action (Clicks &amp; Keystrokes)</option>
               <option value="form">Form (Auth &amp; Roadblocks)</option>
-              <option value="extraction">Extraction (Data &amp; JSON Scraper)</option>
+              <option value="extraction">
+                Extraction (Data &amp; JSON Scraper)
+              </option>
               <option value="webhook">Webhook (Artifacts &amp; Export)</option>
-              <option value="summarization">AI Summarization (Gemini &amp; Grok)</option>
-              <option value="news_gather">Browser News Collector (Autonomous Tabs &amp; Headlines)</option>
-              <option value="news_summary">News Intelligence (Categorized Briefing)</option>
-              <option value="email">Email Notification (Resend)</option>
+              <option value="summarization">
+                AI Summarization (Gemini &amp; Grok)
+              </option>
+              <option value="news_gather">
+                Browser News Collector (Autonomous Tabs &amp; Headlines)
+              </option>
+              <option value="news_summary">
+                News Summary (Categorized Briefing)
+              </option>
+              <option value="email">Email Notification (Resend / Nodemailer)</option>
             </select>
           </div>
 
-          <div>
-            <label className="font-semibold text-zinc-700 block mb-1">
+          {/* Email Provider Selector when Archetype is Email */}
+          {formData.archetype === 'email' && (
+            <div className="flex flex-col gap-2 rounded-xl border border-blue-200 bg-blue-50/60 p-3">
+              <div className="flex items-center justify-between">
+                <label className="font-semibold text-blue-950 text-[11px] uppercase tracking-wide">
+                  Email Provider
+                </label>
+                <span className="text-[10px] font-mono font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full border border-blue-200">
+                  {formData.emailProvider === 'nodemailer' ? 'SMTP' : 'Resend API'}
+                </span>
+              </div>
+              <select
+                value={formData.emailProvider || 'resend'}
+                onChange={(e) =>
+                  updateField('emailProvider', e.target.value as EmailProviderType)
+                }
+                className="h-8 w-full rounded-lg border border-blue-200 bg-white px-2.5 py-1 text-xs text-zinc-900 focus:outline-none focus:border-blue-500 cursor-pointer font-medium"
+              >
+                <option value="resend">Resend API (Cloud Transactional Email)</option>
+                <option value="nodemailer">Nodemailer (SMTP Server Transport)</option>
+              </select>
+              <p className="text-[11px] text-blue-800 leading-relaxed">
+                {formData.emailProvider === 'nodemailer'
+                  ? 'Dispatches using SMTP credentials (SMTP_HOST, SMTP_PORT, etc.). Falls back to safe simulation if unconfigured.'
+                  : 'Dispatches using Resend cloud API (RESEND_API_KEY). Falls back to safe simulation if unconfigured.'}
+              </p>
+            </div>
+          )}
+
+          {/* Target URL */}
+          <div className="flex flex-col gap-1.5">
+            <label className="font-semibold text-zinc-600 text-[11px] uppercase tracking-wide">
               Target URL / Scope
             </label>
-            <div className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50/50 px-2.5 py-1.5 focus-within:bg-white focus-within:border-zinc-900">
+            <div className="flex items-center gap-1.5 rounded-lg border border-input bg-transparent px-2.5 py-1.5 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 transition-colors">
               <TerminalIcon className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
               <input
                 type="text"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
+                value={formData.url}
+                onChange={(e) => updateField('url', e.target.value)}
                 className="w-full bg-transparent font-mono text-[11px] text-zinc-900 focus:outline-none"
                 placeholder="https://example.com"
               />
             </div>
           </div>
 
-          <div>
-            <label className="font-semibold text-zinc-700 block mb-1">
+          {/* CSS Selector */}
+          <div className="flex flex-col gap-1.5">
+            <label className="font-semibold text-zinc-600 text-[11px] uppercase tracking-wide">
               CSS Selector / XPath (Optional)
             </label>
-            <input
+            <Input
               type="text"
               placeholder="e.g. button[data-testid='submit']"
-              value={selector}
-              onChange={(e) => setSelector(e.target.value)}
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-1.5 font-mono text-[11px] text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none"
+              value={formData.selector}
+              onChange={(e) => updateField('selector', e.target.value)}
+              className="h-8 font-mono text-[11px]"
             />
           </div>
 
-          <div>
-            <label className="font-semibold text-zinc-700 block mb-1">
-              Action Summary
+          {/* Action Summary */}
+          <div className="flex flex-col gap-1.5">
+            <label className="font-semibold text-zinc-600 text-[11px] uppercase tracking-wide">
+              Action Summary / Instruction
             </label>
-            <textarea
+            <Textarea
               rows={2}
-              value={actionSummary}
-              onChange={(e) => setActionSummary(e.target.value)}
+              value={formData.actionSummary}
+              onChange={(e) => updateField('actionSummary', e.target.value)}
               placeholder="Heuristic action description..."
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-1.5 text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none"
+              className="text-xs min-h-[56px] resize-none"
             />
           </div>
 
-          <div>
-            <label className="font-semibold text-zinc-700 block mb-1">
+          {/* Description */}
+          <div className="flex flex-col gap-1.5">
+            <label className="font-semibold text-zinc-600 text-[11px] uppercase tracking-wide">
               Step Description &amp; Objective
             </label>
-            <textarea
+            <Textarea
               rows={2}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
+              value={formData.description}
+              onChange={(e) => updateField('description', e.target.value)}
               placeholder="Detailed instructions for the autonomous agent..."
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-1.5 text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none"
+              className="text-xs min-h-[56px] resize-none"
             />
           </div>
 
-          <div>
-            <label className="font-semibold text-zinc-700 block mb-1">
+          {/* Timeout */}
+          <div className="flex flex-col gap-1.5">
+            <label className="font-semibold text-zinc-600 text-[11px] uppercase tracking-wide">
               Timeout (ms)
             </label>
-            <input
+            <Input
               type="number"
-              value={timeoutMs}
+              value={formData.timeoutMs}
               step={500}
-              onChange={(e) => setTimeoutMs(Number(e.target.value))}
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-1.5 font-mono text-[11px] text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none"
+              onChange={(e) => updateField('timeoutMs', Number(e.target.value))}
+              className="h-8 font-mono text-[11px]"
             />
           </div>
         </form>
       </div>
 
-      {/* Action Footer */}
-      <div className="pt-3 border-t border-zinc-100 flex items-center justify-between">
-        <button
+      {/* Sticky Action Footer */}
+      <div className="flex items-center justify-between px-5 py-3.5 border-t border-zinc-100 bg-white">
+        <Button
           type="button"
+          variant="destructive"
+          size="sm"
           onClick={() => {
-            if (confirm("Are you sure you want to remove this node?")) {
+            if (confirm('Are you sure you want to remove this node?')) {
               onDelete(node.id);
               onClose();
             }
           }}
-          className="rounded-lg px-2.5 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
         >
           Delete Node
-        </button>
+        </Button>
 
         <div className="flex items-center gap-2">
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={onClose}
-            className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 transition-colors cursor-pointer"
+            className={'cursor-pointer'}
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
             form="node-config-form"
-            className="rounded-lg bg-zinc-900 px-4 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 transition-colors cursor-pointer shadow-sm"
+            size="sm"
+            className="cursor-pointer"
           >
             Save Changes
-          </button>
+          </Button>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 }
 
@@ -260,15 +404,17 @@ export function NodeConfigDrawer({
   onSave,
   onDelete,
 }: NodeConfigDrawerProps) {
-  if (!isOpen || !node) return null;
-
   return (
-    <NodeConfigDrawerContent
-      key={node.id}
-      node={node}
-      onClose={onClose}
-      onSave={onSave}
-      onDelete={onDelete}
-    />
+    <AnimatePresence>
+      {isOpen && node && (
+        <NodeConfigDrawerContent
+          key={node.id}
+          node={node}
+          onClose={onClose}
+          onSave={onSave}
+          onDelete={onDelete}
+        />
+      )}
+    </AnimatePresence>
   );
 }

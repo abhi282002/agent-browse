@@ -14,9 +14,14 @@ export const nodeTemplateRouter = router({
         category: z.string().min(1, "Category is required"),
         badge: z.string().min(1, "Badge is required"),
         archetype: z.string().default("action"),
+        emailProvider: z.enum(["resend", "nodemailer"]).optional(),
         description: z.string().min(1, "Description is required"),
         actionSummary: z.string().min(1, "Action summary is required"),
         isPremium: z.boolean().default(false),
+        defaultMetrics: z
+          .array(z.object({ label: z.string(), value: z.string() }))
+          .optional(),
+        defaultLogs: z.array(z.string()).optional(),
       })
     )
     .mutation(async ({ input }) => {
@@ -31,9 +36,14 @@ export const nodeTemplateRouter = router({
         category: z.string().optional(),
         badge: z.string().optional(),
         archetype: z.string().optional(),
+        emailProvider: z.enum(["resend", "nodemailer"]).optional(),
         description: z.string().optional(),
         actionSummary: z.string().optional(),
         isPremium: z.boolean().optional(),
+        defaultMetrics: z
+          .array(z.object({ label: z.string(), value: z.string() }))
+          .optional(),
+        defaultLogs: z.array(z.string()).optional(),
       })
     )
     .mutation(async ({ input }) => {

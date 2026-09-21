@@ -15,19 +15,16 @@ const PRESET_TEMPLATES = [
   {
     name: "HackerNews Trending Extractor",
     category: "Data Extraction",
-    targetUrl: "https://news.ycombinator.com",
     description: "Extracts top 30 stories with vote count, comments link, and author metadata into JSON.",
   },
   {
     name: "Autonomous Lead Enrichment Bot",
     category: "Lead Intelligence",
-    targetUrl: "https://linkedin.com/search/results",
     description: "Traverses profile cards, verifies email MX records, and normalizes company domains.",
   },
   {
     name: "Flight & Travel Fare Monitor",
     category: "Price Tracker",
-    targetUrl: "https://google.com/travel/flights",
     description: "Monitors roundtrip itineraries, extracts airline tariffs, and triggers discount webhooks.",
   },
 ];
@@ -40,7 +37,6 @@ export function CreateWorkflowModal({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("Data Extraction");
-  const [targetUrl, setTargetUrl] = useState("https://");
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
@@ -51,23 +47,17 @@ export function CreateWorkflowModal({
       setError("Please provide a workflow name.");
       return;
     }
-    if (!targetUrl.trim() || targetUrl === "https://") {
-      setError("Please enter a valid target URL.");
-      return;
-    }
 
     const newWf = createWorkflowFromBlueprint({
       name: name.trim(),
       description: description.trim(),
       category: category.trim(),
-      targetUrl: targetUrl.trim(),
     });
 
     onCreate(newWf);
     // Reset and close
     setName("");
     setDescription("");
-    setTargetUrl("https://");
     setError(null);
     onClose();
   };
@@ -75,7 +65,6 @@ export function CreateWorkflowModal({
   const handleApplyPreset = (template: typeof PRESET_TEMPLATES[0]) => {
     setName(template.name);
     setCategory(template.category);
-    setTargetUrl(template.targetUrl);
     setDescription(template.description);
     setError(null);
   };
@@ -153,32 +142,17 @@ export function CreateWorkflowModal({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="text-xs font-semibold text-zinc-700 block mb-1">
-                Category
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Price Monitor"
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none transition-colors"
-              />
-            </div>
-            <div>
-              <label className="text-xs font-semibold text-zinc-700 block mb-1">
-                Target Starting URL
-              </label>
-              <input
-                type="url"
-                required
-                placeholder="https://example.com"
-                value={targetUrl}
-                onChange={(e) => setTargetUrl(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-xs text-zinc-900 font-mono focus:bg-white focus:border-zinc-900 focus:outline-none transition-colors"
-              />
-            </div>
+          <div>
+            <label className="text-xs font-semibold text-zinc-700 block mb-1">
+              Category
+            </label>
+            <input
+              type="text"
+              placeholder="e.g. Price Monitor"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none transition-colors"
+            />
           </div>
 
           <div>

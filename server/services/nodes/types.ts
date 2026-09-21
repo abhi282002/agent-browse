@@ -13,13 +13,16 @@ export interface WorkflowExecutionNode {
     archetype?: string;
     selector?: string;
     payload?: string;
+    emailProvider?: 'resend' | 'nodemailer';
+    metrics?: { label: string; value: string }[];
+    [key: string]: unknown;
   };
 }
 
 export interface NodeExecutionContext {
   stagehand: Stagehand;
   page: Page;
-  targetUrl: string;
+  targetUrl?: string;
   aiModel?: string;
   userEmail?: string;
   pipelineOutputs?: Record<string, unknown>;

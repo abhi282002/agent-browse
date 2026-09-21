@@ -10,7 +10,7 @@ import type { Context } from '@/server/trpc/context';
 const executionInputSchema = z.object({
   workflowId: z.string(),
   workflowName: z.string(),
-  targetUrl: z.string(),
+  targetUrl: z.string().optional().default(""),
   aiModel: z.string().optional(),
   userEmail: z.string().optional(),
   nodes: z.array(
@@ -68,6 +68,9 @@ export const executionRouter = router({
     .input(executionInputSchema)
     .mutation(
       async ({ input, ctx }: { input: ExecutionInput; ctx: Context }) => {
+        if (input.nodes.length === 0) {
+          throw new Error('Workflow has no step nodes to execute.');
+        }
         const resolvedEmail = input.userEmail || ctx.user?.email || undefined;
         return TriggerDevService.triggerWorkflow({
           ...input,
@@ -83,5 +86,50 @@ export const executionRouter = router({
     .input(z.object({ runId: z.string() }))
     .query(async ({ input }) => {
       return TriggerDevService.getRunStatus(input.runId);
+    }),
+
+  /**
+   * Dynamically schedule a workflow on Trigger.dev (defaults to 9:00 AM IST)
+   */
+  scheduleWorkflow: publicProcedure
+    .input(
+      z.object({
+        workflowId: z.string(),
+        cron: z.string().default('0 9 * * *'),
+        timezone: z.string().default('Asia/Kolkata'),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      return TriggerDevService.createWorkflowSchedule(input);
+    }),
+
+  /**
+   * Retrieve active schedule details for a workflow
+   */
+  getWorkflowSchedule: publicProcedure
+    .input(z.object({ workflowId: z.string() }))
+    .query(async ({ input }) => {
+      return TriggerDevService.getWorkflowSchedule(input.workflowId);
+    }),
+
+  /**
+   * Cancel and delete a workflow schedule from Trigger.dev
+   */
+  deleteWorkflowSchedule: publicProcedure
+    .input(z.object({ workflowId: z.string() }))
+    .mutation(async ({ input }) => {
+      return TriggerDevService.deleteWorkflowSchedule(input.workflowId);
+    }),
+
+  /**
+   * Toggle active state (pause/resume) of a workflow schedule
+   */
+  toggleWorkflowSchedule: publicProcedure
+    .input(z.object({ workflowId: z.string(), active: z.boolean() }))
+    .mutation(async ({ input }) => {
+      return TriggerDevService.toggleWorkflowSchedule(
+        input.workflowId,
+        input.active,
+      );
     }),
 });

@@ -53,6 +53,95 @@ export const NEWS_CATEGORIES_CONFIG: Record<string, NewsCategoryConfig> = {
     ],
     urlPatterns: ['/india', '/politics'],
   },
+  technology: {
+    fullName: 'Technology',
+    keywords: [
+      'technology',
+      'tech',
+      'gadgets',
+      'software',
+      'hardware',
+      'cybersecurity',
+      'smartphones',
+      'computing',
+      'innovation',
+    ],
+    urlPatterns: ['/technology', '/tech', '/gadgets-news'],
+  },
+  health: {
+    fullName: 'Health',
+    keywords: [
+      'health',
+      'medical',
+      'wellness',
+      'fitness',
+      'medicine',
+      'healthcare',
+      'disease',
+      'nutrition',
+      'mental health',
+    ],
+    urlPatterns: ['/health', '/life-style/health-fitness', '/lifestyle/health-fitness'],
+  },
+  culture: {
+    fullName: 'Culture',
+    keywords: [
+      'culture',
+      'heritage',
+      'society',
+      'traditions',
+      'history',
+      'community',
+      'lifestyle',
+      'customs',
+    ],
+    urlPatterns: ['/culture', '/lifestyle/culture', '/life-style'],
+  },
+  arts: {
+    fullName: 'Arts',
+    keywords: [
+      'arts',
+      'art',
+      'entertainment',
+      'cinema',
+      'music',
+      'movies',
+      'books',
+      'theatre',
+      'literature',
+      'paintings',
+    ],
+    urlPatterns: ['/entertainment', '/arts', '/lifestyle/books'],
+  },
+  travel: {
+    fullName: 'Travel',
+    keywords: [
+      'travel',
+      'tourism',
+      'destinations',
+      'vacation',
+      'hospitality',
+      'explore',
+      'holiday',
+      'flights',
+    ],
+    urlPatterns: ['/travel', '/lifestyle/spotlight/travel', '/life-style/spotlight/travel'],
+  },
+  earth: {
+    fullName: 'Earth',
+    keywords: [
+      'earth',
+      'environment',
+      'climate',
+      'nature',
+      'planet',
+      'wildlife',
+      'ecology',
+      'sustainability',
+      'global warming',
+    ],
+    urlPatterns: ['/environment', '/earth', '/climate-change', '/nature'],
+  },
 };
 
 /**
@@ -231,15 +320,16 @@ export function resolveNewsCategories(payload?: string): {
   fullCategoriesList: string[];
 } {
   let categories = Object.keys(NEWS_CATEGORIES_CONFIG);
-  if (payload) {
+  if (payload && payload.trim()) {
     try {
       const parsed = JSON.parse(payload);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        categories = parsed.map(String);
+        categories = parsed.map((s) => String(s).trim().toLowerCase()).filter(Boolean);
       }
     } catch {
+      const delimiter = payload.includes(',') ? ',' : /\s+/;
       const split = payload
-        .split(',')
+        .split(delimiter)
         .map((s) => s.trim().toLowerCase())
         .filter(Boolean);
       if (split.length > 0) {
@@ -276,4 +366,99 @@ export function formatGatheredDocument(
     }
   }
   return gatheredDocument;
+}
+
+export interface ExtractedArticleJson {
+  headline: string;
+  subheading?: string;
+  author?: string;
+  publishedDate?: string;
+  summary: string;
+  keyPoints?: string[];
+  url?: string;
+  category?: string;
+}
+
+export const ARTICLE_JSON_SCHEMA = {
+  type: 'object',
+  properties: {
+    headline: {
+      type: 'string',
+      description: 'The main headline of the news article',
+    },
+    subheading: {
+      type: 'string',
+      description: 'The subheading or deck summary if available',
+    },
+    author: {
+      type: 'string',
+      description: 'Author or news agency name',
+    },
+    publishedDate: {
+      type: 'string',
+      description: 'Date of publication',
+    },
+    summary: {
+      type: 'string',
+      description: 'A comprehensive 2-3 paragraph summary of the article body',
+    },
+    keyPoints: {
+      type: 'array',
+      items: { type: 'string' },
+      description: 'Bullet points of key facts or events mentioned in the article',
+    },
+  },
+  required: ['headline', 'summary'],
+};
+
+/**
+ * Formats structured article JSON records into a comprehensive document
+ * for Gemini agent summarization and digestion.
+ */
+export function formatJsonArticlesToDocument(
+  articlesByCategory: Record<string, ExtractedArticleJson[]>,
+): string {
+  let doc = '';
+  for (const [catKey, articles] of Object.entries(articlesByCategory)) {
+    if (!articles || articles.length === 0) continue;
+    const catName =
+      NEWS_CATEGORIES_CONFIG[catKey.toLowerCase()]?.fullName ||
+      catKey.toUpperCase();
+    doc += `\n=== CATEGORY: ${catName} ===\n`;
+    for (const [idx, art] of articles.entries()) {
+      doc += `\nStory #${idx + 1}: ${art.headline}\n`;
+      if (art.publishedDate) doc += `Published: ${art.publishedDate}\n`;
+      if (art.url) doc += `Source URL: ${art.url}\n`;
+      if (art.summary) doc += `Summary: ${art.summary}\n`;
+      if (art.keyPoints && art.keyPoints.length > 0) {
+        doc += `Key Points:\n${art.keyPoints.map((p) => `  • ${p}`).join('\n')}\n`;
+      }
+    }
+  }
+  return doc;
+}
+
+/**
+ * Builds an optimal search query string for Browserbase Web Search API
+ * scoped to the given domain or news site.
+ */
+export function buildCategorySearchQuery(
+  domain: string,
+  categoryKey: string,
+): string {
+  const cfg = NEWS_CATEGORIES_CONFIG[categoryKey.toLowerCase().trim()];
+  const primaryTerm = cfg?.fullName || categoryKey;
+  const cleanDomain = domain
+    .replace(/^https?:\/\//, '')
+    .replace(/\/.*$/, '')
+    .trim();
+
+  if (
+    cleanDomain &&
+    cleanDomain !== 'localhost' &&
+    cleanDomain !== 'example.com'
+  ) {
+    return `site:${cleanDomain} ${primaryTerm} news`;
+  }
+  return `${primaryTerm} breaking news`;
 }

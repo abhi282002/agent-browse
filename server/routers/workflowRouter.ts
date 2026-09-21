@@ -19,7 +19,7 @@ export const workflowRouter = router({
         name: z.string().min(1, "Workflow name is required"),
         description: z.string().optional(),
         category: z.string().default("Custom Automation"),
-        targetUrl: z.string().min(1, "Target URL is required"),
+        targetUrl: z.string().optional().default(""),
         aiModel: z.string().optional(),
         sandboxEnv: z.string().optional(),
         nodes: z.array(z.any()).default([]),

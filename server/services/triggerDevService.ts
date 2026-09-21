@@ -1,4 +1,4 @@
-import { tasks, runs } from '@trigger.dev/sdk';
+import { tasks, runs, schedules } from '@trigger.dev/sdk';
 import { BrowserbaseService } from './browserbaseService';
 import type {
   executeWorkflowPipelineTask,
@@ -82,5 +82,163 @@ export class TriggerDevService {
         error: err instanceof Error ? err.message : String(err),
       };
     }
+  }
+
+  /**
+   * Create or update a dynamic schedule for a workflow
+   */
+
+  /**
+   * Some IANA timezone aliases are rejected by Trigger.dev's API.
+   * Map them to the canonical names Trigger.dev accepts.
+   */
+  private static normalizeTriggerTimezone(tz: string): string {
+    const aliases: Record<string, string> = {
+      'Asia/Kolkata':        'Asia/Calcutta',
+      'Asia/Kathmandu':      'Asia/Katmandu',
+      'America/Indiana/Indianapolis': 'America/Indianapolis',
+      'Pacific/Honolulu':    'US/Hawaii',
+    };
+    return aliases[tz] ?? tz;
+  }
+
+  static async createWorkflowSchedule(params: {
+    workflowId: string;
+    cron?: string;
+    timezone?: string;
+  }) {
+    const status = this.getStatus();
+    const cron = params.cron || '0 9 * * *';
+    const timezone = TriggerDevService.normalizeTriggerTimezone(
+      params.timezone || 'Asia/Calcutta',
+    );
+    const deduplicationKey = `wf-sched-${params.workflowId}`;
+
+    if (!status.isConfigured) {
+      return {
+        id: `sim-sched-${params.workflowId}`,
+        workflowId: params.workflowId,
+        cron,
+        timezone,
+        active: true,
+        isSimulated: true,
+        nextRun: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        message: 'Trigger.dev simulated schedule registered.',
+      };
+    }
+
+    try {
+      const schedule = await schedules.create({
+        task: 'execute-scheduled-workflow',
+        cron,
+        timezone,
+        externalId: params.workflowId,
+        deduplicationKey,
+      });
+
+      return {
+        id: schedule.id,
+        workflowId: params.workflowId,
+        cron: schedule.generator.expression,
+        timezone: schedule.timezone,
+        active: schedule.active,
+        nextRun: schedule.nextRun ? schedule.nextRun.toISOString() : null,
+        isSimulated: false,
+        message: `Workflow scheduled successfully to run at ${cron} (${timezone}).`,
+      };
+    } catch (err) {
+      console.error('[TriggerDevService] Failed to create schedule:', err);
+      throw new Error(
+        `Failed to create Trigger.dev schedule: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  /**
+   * Retrieve active schedule details for a specific workflow
+   */
+  static async getWorkflowSchedule(workflowId: string) {
+    const status = this.getStatus();
+    if (!status.isConfigured) {
+      return null;
+    }
+
+    try {
+      const scheduleList = await schedules.list({ perPage: 100 });
+      const found = scheduleList.data.find(
+        (s) =>
+          s.externalId === workflowId ||
+          s.deduplicationKey === `wf-sched-${workflowId}`,
+      );
+
+      if (!found) return null;
+
+      return {
+        id: found.id,
+        workflowId,
+        cron: found.generator.expression,
+        timezone: found.timezone,
+        active: found.active,
+        nextRun: found.nextRun ? found.nextRun.toISOString() : null,
+      };
+    } catch (err) {
+      console.warn('[TriggerDevService] Failed to get schedule:', err);
+      return null;
+    }
+  }
+
+  /**
+   * Delete schedule for a workflow
+   */
+  static async deleteWorkflowSchedule(workflowId: string) {
+    const status = this.getStatus();
+    if (!status.isConfigured) {
+      return { success: true, message: 'Simulated schedule deleted' };
+    }
+
+    try {
+      const existing = await this.getWorkflowSchedule(workflowId);
+      if (existing) {
+        await schedules.del(existing.id);
+        return {
+          success: true,
+          scheduleId: existing.id,
+          message: 'Schedule deleted from Trigger.dev.',
+        };
+      }
+      return { success: true, message: 'No active schedule found to delete.' };
+    } catch (err) {
+      console.error('[TriggerDevService] Failed to delete schedule:', err);
+      throw new Error(
+        `Failed to delete schedule: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  /**
+   * Toggle active state (pause/resume) of a workflow schedule
+   */
+  static async toggleWorkflowSchedule(workflowId: string, active: boolean) {
+    const status = this.getStatus();
+    if (!status.isConfigured) {
+      return { workflowId, active, isSimulated: true };
+    }
+
+    const existing = await this.getWorkflowSchedule(workflowId);
+    if (!existing) {
+      throw new Error(`No active schedule found for workflow: ${workflowId}`);
+    }
+
+    if (active) {
+      await schedules.activate(existing.id);
+    } else {
+      await schedules.deactivate(existing.id);
+    }
+
+    return {
+      scheduleId: existing.id,
+      workflowId,
+      active,
+    };
   }
 }

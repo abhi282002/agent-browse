@@ -2,13 +2,13 @@ import { prisma } from "@/lib/prisma";
 import type { Prisma } from "@prisma/client";
 import type { Edge } from "@xyflow/react";
 import type { WorkflowNodeType } from "@/components/workflow/flow/types";
-import { DEFAULT_WORKFLOWS } from "@/components/workflow/flow/defaultFlows";
+import { DEFAULT_WORKFLOW_SEEDS } from "./workflowSeedData";
 
 export interface CreateWorkflowInput {
   name: string;
   description?: string;
   category: string;
-  targetUrl: string;
+  targetUrl?: string;
   aiModel?: string;
   sandboxEnv?: string;
   nodes: unknown[];
@@ -47,14 +47,14 @@ export class WorkflowService {
 
     // Auto-seed default workflows if none exist yet
     if (workflows.length === 0) {
-      for (const def of DEFAULT_WORKFLOWS) {
+      for (const def of DEFAULT_WORKFLOW_SEEDS) {
         await prisma.workflow.create({
           data: {
             id: def.id,
             name: def.name,
             description: def.description,
             category: def.category,
-            targetUrl: def.targetUrl,
+            targetUrl: def.targetUrl || "",
             status: def.status,
             aiModel: "Gemini 2.5 Pro Vision",
             sandboxEnv: "Chromium 128 (CDP Protocol)",
@@ -122,7 +122,7 @@ export class WorkflowService {
         name: input.name.trim(),
         description: input.description?.trim() || "",
         category: input.category.trim() || "Custom Automation",
-        targetUrl: input.targetUrl.trim(),
+        targetUrl: (input.targetUrl || "").trim(),
         status: input.status || "idle",
         aiModel: input.aiModel || "Gemini 2.5 Pro Vision",
         sandboxEnv: input.sandboxEnv || "Chromium 128 (CDP Protocol)",
@@ -156,7 +156,7 @@ export class WorkflowService {
     });
 
     if (!existing) {
-      const defaultWf = DEFAULT_WORKFLOWS.find((w) => w.id === id);
+      const defaultWf = DEFAULT_WORKFLOW_SEEDS.find((w) => w.id === id);
       if (defaultWf) {
         existing = await prisma.workflow.create({
           data: {
@@ -164,7 +164,7 @@ export class WorkflowService {
             name: input.name?.trim() || defaultWf.name,
             description: input.description?.trim() || defaultWf.description,
             category: input.category?.trim() || defaultWf.category,
-            targetUrl: input.targetUrl?.trim() || defaultWf.targetUrl,
+            targetUrl: input.targetUrl?.trim() || defaultWf.targetUrl || "",
             status: input.status || defaultWf.status,
             aiModel: input.aiModel || "Gemini 2.5 Pro Vision",
             sandboxEnv: input.sandboxEnv || "Chromium 128 (CDP Protocol)",

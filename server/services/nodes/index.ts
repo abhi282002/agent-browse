@@ -9,3 +9,4 @@ export * from './summarizationNode';
 export * from './newsGatherNode';
 export * from './newsSummarizationNode';
 export * from './emailNode';
+export * from './openUrlNode';

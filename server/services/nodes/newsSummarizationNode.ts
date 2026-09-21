@@ -61,6 +61,20 @@ export const executeNewsSummarizationNode: NodeHandler = async (node, ctx) => {
     }
   }
 
+  let gatheredArticles = ctx.previousStepOutput?.articles;
+  if (!gatheredArticles && ctx.pipelineOutputs) {
+    for (const out of Object.values(ctx.pipelineOutputs)) {
+      if (
+        out &&
+        typeof out === 'object' &&
+        (out as Record<string, unknown>).articles
+      ) {
+        gatheredArticles = (out as Record<string, unknown>).articles;
+        break;
+      }
+    }
+  }
+
   // 2. Fallback: If run standalone without a preceding collector node, execute browser gathering
   if (!gatheredContent && ctx.page) {
     logs.push(
@@ -70,6 +84,9 @@ export const executeNewsSummarizationNode: NodeHandler = async (node, ctx) => {
     logs.push(...gatherRes.logs);
     if (typeof gatherRes.output?.gatheredDocument === 'string') {
       gatheredContent = gatherRes.output.gatheredDocument;
+    }
+    if (gatherRes.output?.articles) {
+      gatheredArticles = gatherRes.output.articles;
     }
   }
 
@@ -101,6 +118,7 @@ export const executeNewsSummarizationNode: NodeHandler = async (node, ctx) => {
       totalStories: digestResult.items.length,
       provider: digestResult.provider,
       modelUsed: digestResult.modelUsed,
+      articles: gatheredArticles,
     },
     logs,
   };

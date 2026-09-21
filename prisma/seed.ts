@@ -44,6 +44,33 @@ async function main() {
   console.log(`Plan:      ${adminUser.plan}`);
   console.log(`Workspace: ${adminUser.workspaceName}`);
   console.log("-----------------------------------------");
+
+  // Seed default workflow blueprints into PostgreSQL
+  const { DEFAULT_WORKFLOW_SEEDS } = await import("../server/services/workflowSeedData");
+  for (const wf of DEFAULT_WORKFLOW_SEEDS) {
+    await prisma.workflow.upsert({
+      where: { id: wf.id },
+      update: {
+        name: wf.name,
+        description: wf.description,
+        category: wf.category,
+        targetUrl: wf.targetUrl || "",
+        nodes: wf.nodes as any,
+        edges: wf.edges as any,
+      },
+      create: {
+        id: wf.id,
+        name: wf.name,
+        description: wf.description,
+        category: wf.category,
+        targetUrl: wf.targetUrl || "",
+        status: wf.status,
+        nodes: wf.nodes as any,
+        edges: wf.edges as any,
+      },
+    });
+  }
+  console.log(`Seeded ${DEFAULT_WORKFLOW_SEEDS.length} default workflows into database.`);
 }
 
 main()

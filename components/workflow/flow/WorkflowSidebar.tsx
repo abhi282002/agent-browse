@@ -1,8 +1,10 @@
 "use client";
 
-
 import type { WorkflowBlueprint, WorkflowNodeType } from "./types";
 import { WorkflowExecutionPanel } from "./execution/WorkflowExecutionPanel";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   BotIcon,
   TerminalIcon,
@@ -47,8 +49,8 @@ export function WorkflowSidebar({
     workflow.nodes[0]?.data;
 
   return (
-    <div className="flex flex-col gap-4 h-full w-full rounded-2xl border border-zinc-200/90 bg-white p-5 shadow-xs">
-      {/* Top Header: Workflow Info & Switcher */}
+    <div className="flex h-full flex-col rounded-2xl border border-zinc-200/90 bg-white shadow-xs overflow-y-auto overscroll-contain">
+      <div className="flex flex-col gap-4 p-4 lg:p-5">
       <div className="space-y-3 pb-4 border-b border-zinc-100">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -60,24 +62,26 @@ export function WorkflowSidebar({
             </span>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1 flex-wrap justify-end">
             {onSaveWorkflow && (
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="xs"
                 onClick={onSaveWorkflow}
                 disabled={isSaving}
-                className={`flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold shadow-2xs transition-all cursor-pointer ${
-                  saveStatus === "saved"
-                    ? "bg-emerald-600 text-white"
-                    : saveStatus === "error"
-                    ? "bg-red-600 text-white"
-                    : "border border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
-                } disabled:opacity-50`}
                 title="Save workflow nodes & edges to database"
+                className={
+                  saveStatus === "saved"
+                    ? "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-50"
+                    : saveStatus === "error"
+                      ? "border-red-300 bg-red-50 text-red-800 hover:bg-red-50"
+                      : ""
+                }
               >
                 {isSaving ? (
                   <>
-                    <span className="h-2.5 w-2.5 animate-spin rounded-full border border-white/30 border-t-white" />
+                    <span className="h-2.5 w-2.5 animate-spin rounded-full border border-current/30 border-t-current" />
                     <span>Saving...</span>
                   </>
                 ) : saveStatus === "saved" ? (
@@ -91,45 +95,52 @@ export function WorkflowSidebar({
                     <span>Save</span>
                   </>
                 )}
-              </button>
+              </Button>
             )}
 
             {onOpenNodeCatalog && (
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="xs"
                 onClick={onOpenNodeCatalog}
-                className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-colors cursor-pointer shadow-2xs"
                 title="Add Step Node"
               >
-                <span>+ Step</span>
-              </button>
+                + Step
+              </Button>
             )}
+
             {onOpenEditWorkflow && (
-              <button
+              <Button
                 type="button"
+                variant="outline"
+                size="xs"
                 onClick={onOpenEditWorkflow}
-                className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 transition-colors cursor-pointer shadow-2xs"
                 title="Edit Workflow Settings & Target URL"
               >
-                <span>✏️ Edit</span>
-              </button>
+                ✏️ Edit
+              </Button>
             )}
-            <button
+
+            <Button
               type="button"
+              size="xs"
               onClick={onOpenCreateModal}
-              className="flex items-center gap-1 rounded-lg bg-zinc-900 px-2.5 py-1 text-xs font-medium text-white hover:bg-zinc-800 transition-colors cursor-pointer shadow-2xs"
             >
               <SparklesIcon className="h-3 w-3 text-emerald-400" />
-              <span>+ New Wf</span>
-            </button>
+              <span>+ New</span>
+            </Button>
           </div>
         </div>
 
-        {/* Workflow Name with Switcher Dropdown */}
+        {/* Workflow Name */}
         <div className="space-y-1">
           <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5 min-w-0">
-              <h3 className="text-base font-bold text-zinc-900 tracking-tight leading-snug truncate">
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              <h3
+                title={workflow.name}
+                className="text-base font-bold text-zinc-900 tracking-tight leading-snug truncate"
+              >
                 {workflow.name}
               </h3>
               {onOpenEditWorkflow && (
@@ -143,9 +154,9 @@ export function WorkflowSidebar({
                 </button>
               )}
             </div>
-            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 border border-emerald-200/70 shrink-0">
+            <Badge variant="secondary" className="shrink-0 text-[10px]">
               {workflow.category}
-            </span>
+            </Badge>
           </div>
           <p className="text-xs text-zinc-500 line-clamp-2">
             {workflow.description}
@@ -183,7 +194,7 @@ export function WorkflowSidebar({
 
       {/* Selected Node Details Inspector */}
       {activeStepData && (
-        <div className="flex flex-col gap-3 flex-1">
+        <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <span className="flex h-5 w-5 items-center justify-center rounded-md bg-zinc-900 font-mono text-[11px] font-bold text-white">
@@ -198,14 +209,15 @@ export function WorkflowSidebar({
                 {activeStepData.badge}
               </span>
               {onOpenNodeConfig && (
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="xs"
                   onClick={onOpenNodeConfig}
-                  className="rounded border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[10px] font-medium text-zinc-700 hover:bg-zinc-100 hover:border-zinc-300 transition-colors cursor-pointer"
                   title="Edit and configure step parameters"
                 >
                   Edit
-                </button>
+                </Button>
               )}
             </div>
           </div>
@@ -244,23 +256,26 @@ export function WorkflowSidebar({
           </div>
 
           {/* Terminal Console Logs */}
-          <div className="flex-1 rounded-xl border border-zinc-900/90 bg-zinc-950 p-3 text-zinc-300 font-mono text-[11px] space-y-1.5 overflow-y-auto max-h-[160px]">
-            <div className="flex items-center justify-between pb-1 border-b border-zinc-800 text-[10px] text-zinc-400">
-              <span className="flex items-center gap-1">
-                <TerminalIcon className="h-3 w-3 text-emerald-400" />
-                <span>CDP Console</span>
-              </span>
-              <span className="text-[9px] text-emerald-400">Live</span>
-            </div>
-            {activeStepData.logLines?.map((log, idx) => (
-              <div key={idx} className="flex gap-1.5 text-[10px] leading-tight">
-                <span className="text-emerald-500 select-none">&gt;</span>
-                <span className="text-zinc-300">{log}</span>
+          <ScrollArea className="flex-1 rounded-xl border border-zinc-900/90 bg-zinc-950 p-3 max-h-[160px]">
+            <div className="text-zinc-300 font-mono text-[11px] space-y-1.5">
+              <div className="flex items-center justify-between pb-1 border-b border-zinc-800 text-[10px] text-zinc-400">
+                <span className="flex items-center gap-1">
+                  <TerminalIcon className="h-3 w-3 text-emerald-400" />
+                  <span>CDP Console</span>
+                </span>
+                <span className="text-[9px] text-emerald-400">Live</span>
               </div>
-            ))}
-          </div>
+              {activeStepData.logLines?.map((log, idx) => (
+                <div key={idx} className="flex gap-1.5 text-[10px] leading-tight">
+                  <span className="text-emerald-500 select-none">&gt;</span>
+                  <span className="text-zinc-300">{log}</span>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
         </div>
       )}
+      </div>
     </div>
   );
 }

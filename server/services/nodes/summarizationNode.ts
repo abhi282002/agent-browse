@@ -32,16 +32,34 @@ export const executeSummarizationNode: NodeHandler = async (node, ctx) => {
     }
   }
 
-  if (ctx.page) {
+  const activePage =
+    (await ctx.stagehand?.browser?.context?.activePage().catch(() => undefined)) ||
+    ctx.page;
+
+  if (activePage) {
     try {
       logs.push('Extracting live DOM innerText for agent perception...');
-      pageText = await ctx.page.evaluate(() => document.body?.innerText || '');
-      pageTitle = (await ctx.page.title()) || node.data.title;
+      await activePage.waitForTimeout(1000).catch(() => {});
+      pageText = await activePage.evaluate(() => document.body?.innerText || '');
+      pageTitle = (await activePage.title().catch(() => '')) || node.data.title;
       logs.push(`Captured ${pageText.length} characters of DOM text context`);
     } catch (err) {
-      logs.push(
-        `DOM text extraction note: ${err instanceof Error ? err.message : String(err)}`,
-      );
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (/no frame with given id|frame.*not found|target.*not found/i.test(errMsg)) {
+        logs.push('⚠ Frame busy during DOM text extraction. Retrying after stabilization...');
+        await activePage.waitForTimeout(2000).catch(() => {});
+        try {
+          pageText = await activePage.evaluate(() => document.body?.innerText || '');
+          pageTitle = (await activePage.title().catch(() => '')) || node.data.title;
+          logs.push(`Captured ${pageText.length} characters of DOM text context on retry`);
+        } catch (retryErr) {
+          logs.push(
+            `DOM text extraction note: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`,
+          );
+        }
+      } else {
+        logs.push(`DOM text extraction note: ${errMsg}`);
+      }
     }
   }
 

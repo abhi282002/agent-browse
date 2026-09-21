@@ -8,7 +8,9 @@ import type {
   WorkflowNodeType,
   WorkflowNodeData,
   NodeTemplate,
+  StepNodeStatus,
 } from "../types";
+import type { WorkflowExecutionResult } from "@/server/services/browserbaseService";
 import { createWorkflowFromBlueprint } from "../defaultFlows";
 
 export function useWorkflowManager() {
@@ -18,9 +20,14 @@ export function useWorkflowManager() {
   const [isRunning, setIsRunning] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [executionResult, setExecutionResult] = useState<WorkflowExecutionResult | null>(null);
+  const [executionError, setExecutionError] = useState<string | null>(null);
 
   // tRPC Queries & Mutations
   const utils = trpc.useContext();
+  const { data: currentUser } = trpc.auth.me.useQuery(undefined, {
+    staleTime: 60 * 1000,
+  });
   const { data: serverWorkflows } = trpc.workflow.getAll.useQuery(undefined, {
     staleTime: 10 * 1000,
     refetchOnWindowFocus: false,
@@ -65,7 +72,7 @@ export function useWorkflowManager() {
       name: string;
       description: string;
       category: string;
-      targetUrl: string;
+      targetUrl?: string;
       aiModel?: string;
       sandboxEnv?: string;
     }) => {
@@ -84,7 +91,7 @@ export function useWorkflowManager() {
         name: newWf.name,
         description: newWf.description,
         category: newWf.category,
-        targetUrl: newWf.targetUrl,
+        targetUrl: newWf.targetUrl || "",
         aiModel: newWf.aiModel,
         sandboxEnv: newWf.sandboxEnv,
         nodes: newWf.nodes,
@@ -131,8 +138,16 @@ export function useWorkflowManager() {
           url: customData?.url || activeWorkflow.targetUrl || "https://example.com",
           status: "idle",
           metrics: customData?.metrics || template.defaultMetrics,
-          logLines: customData?.logLines || template.defaultLogs,
+          logLines: customData?.logLines || template.defaultLogs || [],
           archetype: template.archetype,
+          emailProvider:
+            customData?.emailProvider ||
+            template.emailProvider ||
+            (template.archetype === 'email'
+              ? template.defaultMetrics?.find((m) => m.label.toLowerCase() === 'provider')?.value.toLowerCase().includes('nodemailer')
+                ? 'nodemailer'
+                : 'resend'
+              : undefined),
           selector: customData?.selector,
           payload: customData?.payload,
           timeoutMs: customData?.timeoutMs || 5000,
@@ -179,38 +194,34 @@ export function useWorkflowManager() {
   const updateNode = useCallback(
     (nodeId: string, updatedData: Partial<WorkflowNodeData>) => {
       if (!activeWorkflow) return;
-      let updatedNodes: WorkflowNodeType[] = [];
-      let mergedSelectedNode: WorkflowNodeType | null = null;
+
+      const updatedNodes = activeWorkflow.nodes.map((node) => {
+        if (node.id !== nodeId) return node;
+        return {
+          ...node,
+          data: {
+            ...node.data,
+            ...updatedData,
+          },
+        };
+      });
+
+      const updatedSelectedNode = updatedNodes.find((n) => n.id === nodeId) || null;
+      if (updatedSelectedNode) {
+        setSelectedNode(updatedSelectedNode);
+      }
 
       setLocalWorkflows((prev) => {
         const base = prev ?? (serverWorkflows as unknown as WorkflowBlueprint[]) ?? [];
-        return base.map((wf) => {
-          if (wf.id !== activeWorkflow.id) return wf;
-
-          updatedNodes = wf.nodes.map((node) => {
-            if (node.id !== nodeId) return node;
-            const merged = {
-              ...node,
-              data: {
-                ...node.data,
-                ...updatedData,
-              },
-            };
-            mergedSelectedNode = merged;
-            return merged;
-          });
-
-          return { ...wf, nodes: updatedNodes };
-        });
+        return base.map((wf) =>
+          wf.id === activeWorkflow.id ? { ...wf, nodes: updatedNodes } : wf
+        );
       });
-
-      if (mergedSelectedNode) {
-        setSelectedNode(mergedSelectedNode);
-      }
 
       updateMutation.mutate({
         id: activeWorkflow.id,
         nodes: updatedNodes,
+        edges: activeWorkflow.edges,
       });
     },
     [activeWorkflow, updateMutation, serverWorkflows]
@@ -219,33 +230,29 @@ export function useWorkflowManager() {
   const deleteNode = useCallback(
     (nodeId: string) => {
       if (!activeWorkflow) return;
-      let updatedNodes: WorkflowNodeType[] = [];
-      let updatedEdges: Edge[] = [];
+
+      const updatedNodes = activeWorkflow.nodes
+        .filter((node) => node.id !== nodeId)
+        .map((node, index) => ({
+          ...node,
+          data: {
+            ...node.data,
+            stepNumber: index + 1,
+          },
+        }));
+
+      const updatedEdges = activeWorkflow.edges.filter(
+        (edge) => edge.source !== nodeId && edge.target !== nodeId
+      );
+
+      setSelectedNode(null);
 
       setLocalWorkflows((prev) => {
         const base = prev ?? (serverWorkflows as unknown as WorkflowBlueprint[]) ?? [];
-        return base.map((wf) => {
-          if (wf.id !== activeWorkflow.id) return wf;
-
-          updatedNodes = wf.nodes
-            .filter((node) => node.id !== nodeId)
-            .map((node, index) => ({
-              ...node,
-              data: {
-                ...node.data,
-                stepNumber: index + 1,
-              },
-            }));
-
-          updatedEdges = wf.edges.filter(
-            (edge) => edge.source !== nodeId && edge.target !== nodeId
-          );
-
-          return { ...wf, nodes: updatedNodes, edges: updatedEdges };
-        });
+        return base.map((wf) =>
+          wf.id === activeWorkflow.id ? { ...wf, nodes: updatedNodes, edges: updatedEdges } : wf
+        );
       });
-
-      setSelectedNode(null);
 
       updateMutation.mutate({
         id: activeWorkflow.id,
@@ -386,59 +393,106 @@ export function useWorkflowManager() {
     [activeWorkflow, updateMutation, serverWorkflows, utils]
   );
 
-  const runPipeline = useCallback(() => {
-    if (!activeWorkflow || isRunning) return;
-    setIsRunning(true);
-
-    const totalNodes = activeWorkflow.nodes.length;
-    let currentIdx = 0;
-
-    const interval = setInterval(() => {
-      if (currentIdx >= totalNodes) {
-        clearInterval(interval);
-        setIsRunning(false);
-        return;
-      }
-
-      setLocalWorkflows((prev) => {
-        const base = prev ?? (serverWorkflows as unknown as WorkflowBlueprint[]) ?? [];
-        return base.map((wf) => {
-          if (wf.id !== activeWorkflow.id) return wf;
-
-          const updatedNodes = wf.nodes.map((node, i) => {
-            if (i === currentIdx) {
-              return {
-                ...node,
-                data: { ...node.data, status: "running" as const },
-              };
-            }
-            if (i < currentIdx) {
-              return {
-                ...node,
-                data: { ...node.data, status: "completed" as const },
-              };
-            }
+  const startExecutionMutation = trpc.execution.startExecution.useMutation({
+    onSuccess: (data) => {
+      setIsRunning(false);
+      if ("result" in data && data.result) {
+        const result = data.result as WorkflowExecutionResult;
+        setExecutionResult(result);
+        setLocalWorkflows((prev) => {
+          const base = prev ?? (serverWorkflows as unknown as WorkflowBlueprint[]) ?? [];
+          return base.map((wf) => {
+            if (wf.id !== activeWorkflow?.id) return wf;
+            const updatedNodes = wf.nodes.map((node) => {
+              const stepRes = result.steps.find((s) => s.stepId === node.id);
+              if (stepRes) {
+                return {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    status: (stepRes.status === "completed" ? "completed" : "failed") as StepNodeStatus,
+                    logLines: [...(node.data.logLines || []), ...stepRes.logs],
+                  },
+                };
+              }
+              return node;
+            });
             return {
-              ...node,
-              data: { ...node.data, status: "idle" as const },
+              ...wf,
+              nodes: updatedNodes,
+              status: (result.status as "idle" | "running" | "completed" | "paused") || "completed",
             };
           });
-
-          return { ...wf, nodes: updatedNodes };
         });
-      });
+      }
+    },
+    onError: (err) => {
+      setIsRunning(false);
+      setExecutionError(err.message);
+      console.error("[useWorkflowManager] Execution error:", err.message);
+    },
+  });
 
-      setSelectedNode(activeWorkflow.nodes[currentIdx] || null);
-      currentIdx++;
-    }, 1100);
-  }, [isRunning, activeWorkflow, serverWorkflows]);
+  const runPipeline = useCallback(async () => {
+    if (!activeWorkflow || isRunning) return;
+    if (activeWorkflow.nodes.length === 0) {
+      setExecutionError("Workflow has no step nodes to execute. Please add at least one node to run.");
+      return;
+    }
+
+    setIsRunning(true);
+    setExecutionError(null);
+    setExecutionResult(null);
+
+    // Immediate UI feedback: mark first step as running
+    setLocalWorkflows((prev) => {
+      const base = prev ?? (serverWorkflows as unknown as WorkflowBlueprint[]) ?? [];
+      return base.map((wf) => {
+        if (wf.id !== activeWorkflow.id) return wf;
+        const updatedNodes = wf.nodes.map((node, i) => ({
+          ...node,
+          data: {
+            ...node.data,
+            status: (i === 0 ? "running" : "idle") as StepNodeStatus,
+          },
+        }));
+        return { ...wf, nodes: updatedNodes, status: "running" as const };
+      });
+    });
+
+    try {
+      await startExecutionMutation.mutateAsync({
+        workflowId: activeWorkflow.id,
+        workflowName: activeWorkflow.name,
+        targetUrl: activeWorkflow.targetUrl,
+        aiModel: activeWorkflow.aiModel,
+        userEmail: currentUser?.email,
+        nodes: activeWorkflow.nodes.map((node) => ({
+          id: node.id,
+          data: {
+            stepNumber: node.data.stepNumber,
+            title: node.data.title,
+            category: node.data.category,
+            badge: node.data.badge,
+            description: node.data.description,
+            actionSummary: node.data.actionSummary,
+            url: node.data.url,
+            archetype: node.data.archetype,
+          },
+        })),
+      });
+    } catch (err) {
+      console.error("Workflow execution failed:", err);
+      setIsRunning(false);
+    }
+  }, [activeWorkflow, isRunning, currentUser, startExecutionMutation, serverWorkflows]);
 
   return {
     workflows,
     activeWorkflow,
     activeWorkflowId,
     selectedNode,
-    isRunning,
+    isRunning: isRunning || startExecutionMutation.isPending,
     isSyncing: createMutation.isPending || updateMutation.isPending || deleteMutation.isPending,
     saveWorkflow,
     updateGraph,
@@ -454,5 +508,9 @@ export function useWorkflowManager() {
     updateWorkflowDetails,
     setSelectedNode,
     runPipeline,
+    executionResult,
+    executionError,
+    setExecutionError,
+    clearExecutionError: () => setExecutionError(null),
   };
 }

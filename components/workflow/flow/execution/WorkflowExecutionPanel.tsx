@@ -1,10 +1,16 @@
-"use client";
+'use client';
 
-import React, { useState } from "react";
-import { trpc } from "@/lib/trpc/client";
-import type { WorkflowBlueprint } from "../types";
-import type { WorkflowExecutionResult } from "@/server/services/browserbaseService";
-import { PlayIcon, SparklesIcon, ChromeIcon, BotIcon } from "@/components/ui/icons";
+import React, { useState } from 'react';
+import { trpc } from '@/lib/trpc/client';
+import type { WorkflowBlueprint } from '../types';
+import type { WorkflowExecutionResult } from '@/server/services/browserbaseService';
+import {
+  PlayIcon,
+  SparklesIcon,
+  ChromeIcon,
+  BotIcon,
+} from '@/components/ui/icons';
+import { ScheduleCard } from './ScheduleCard';
 
 interface WorkflowExecutionPanelProps {
   workflow: WorkflowBlueprint;
@@ -19,21 +25,25 @@ export function WorkflowExecutionPanel({
   isLocalRunning,
   onEditWorkflow,
 }: WorkflowExecutionPanelProps) {
-  const { data: integrations } = trpc.execution.getIntegrationsStatus.useQuery(undefined, {
-    staleTime: 30 * 1000,
-  });
+  const { data: integrations } = trpc.execution.getIntegrationsStatus.useQuery(
+    undefined,
+    {
+      staleTime: 30 * 1000,
+    },
+  );
   const { data: currentUser } = trpc.auth.me.useQuery(undefined, {
     staleTime: 60 * 1000,
   });
 
   const [isRunningCloud, setIsRunningCloud] = useState(false);
-  const [cloudResult, setCloudResult] = useState<WorkflowExecutionResult | null>(null);
+  const [cloudResult, setCloudResult] =
+    useState<WorkflowExecutionResult | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const startExecutionMutation = trpc.execution.startExecution.useMutation({
     onSuccess: (data) => {
       setIsRunningCloud(false);
-      if ("result" in data && data.result) {
+      if ('result' in data && data.result) {
         setCloudResult(data.result as WorkflowExecutionResult);
       }
     },
@@ -44,6 +54,11 @@ export function WorkflowExecutionPanel({
   });
 
   const handleRunCloud = () => {
+    if (workflow.nodes.length === 0) {
+      setErrorMessage('Workflow has no step nodes to execute.');
+      return;
+    }
+
     setIsRunningCloud(true);
     setErrorMessage(null);
     setCloudResult(null);
@@ -51,7 +66,7 @@ export function WorkflowExecutionPanel({
     startExecutionMutation.mutate({
       workflowId: workflow.id,
       workflowName: workflow.name,
-      targetUrl: workflow.targetUrl,
+      targetUrl: workflow.targetUrl || '',
       aiModel: workflow.aiModel,
       userEmail: currentUser?.email,
       nodes: workflow.nodes.map((node) => ({
@@ -74,28 +89,11 @@ export function WorkflowExecutionPanel({
 
   return (
     <div className="rounded-xl border border-zinc-200/80 bg-zinc-50 p-3.5 space-y-3">
-      {/* Target and Steps Info */}
+      {/* Steps and Category Info */}
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-xs">
-          <span className="text-zinc-500 font-medium">Target Web URL</span>
-          <div className="flex items-center gap-1.5 max-w-[190px]">
-            <span
-              className="text-[11px] font-mono text-zinc-700 truncate"
-              title={workflow.targetUrl}
-            >
-              {workflow.targetUrl}
-            </span>
-            {onEditWorkflow && (
-              <button
-                type="button"
-                onClick={onEditWorkflow}
-                className="text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer text-xs p-0.5 rounded hover:bg-zinc-200/60 shrink-0"
-                title="Edit Target URL & Workflow Settings"
-              >
-                ✏️
-              </button>
-            )}
-          </div>
+          <span className="text-zinc-500 font-medium">Category</span>
+          <span className="font-medium text-zinc-700">{workflow.category}</span>
         </div>
 
         <div className="flex items-center justify-between text-xs">
@@ -106,10 +104,12 @@ export function WorkflowExecutionPanel({
         </div>
 
         {currentUser?.email && (
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-zinc-500 font-medium">Operator Context</span>
+          <div className="flex items-center justify-between text-xs gap-2">
+            <span className="text-zinc-500 font-medium shrink-0">
+              Operator Context
+            </span>
             <span
-              className="text-[11px] font-mono text-zinc-700 truncate max-w-[160px]"
+              className="text-[11px] font-mono text-zinc-700 truncate min-w-0 flex-1 text-right"
               title={currentUser.email}
             >
               {currentUser.email}
@@ -128,11 +128,21 @@ export function WorkflowExecutionPanel({
           <span className="flex items-center gap-1 font-semibold text-xs">
             <span
               className={`h-1.5 w-1.5 rounded-full ${
-                integrations?.browserbase.isConfigured ? "bg-emerald-500 animate-pulse" : "bg-zinc-400"
+                integrations?.browserbase.isConfigured
+                  ? 'bg-emerald-500 animate-pulse'
+                  : 'bg-zinc-400'
               }`}
             />
-            <span className={integrations?.browserbase.isConfigured ? "text-emerald-700" : "text-zinc-600"}>
-              {integrations?.browserbase.isConfigured ? "Live Cloud CDP" : "Simulation"}
+            <span
+              className={
+                integrations?.browserbase.isConfigured
+                  ? 'text-emerald-700'
+                  : 'text-zinc-600'
+              }
+            >
+              {integrations?.browserbase.isConfigured
+                ? 'Live Cloud CDP'
+                : 'Simulation'}
             </span>
           </span>
         </div>
@@ -145,11 +155,21 @@ export function WorkflowExecutionPanel({
           <span className="flex items-center gap-1 font-semibold text-xs">
             <span
               className={`h-1.5 w-1.5 rounded-full ${
-                integrations?.triggerDev.isConfigured ? "bg-emerald-500" : "bg-amber-500"
+                integrations?.triggerDev.isConfigured
+                  ? 'bg-emerald-500'
+                  : 'bg-amber-500'
               }`}
             />
-            <span className={integrations?.triggerDev.isConfigured ? "text-emerald-700" : "text-amber-800"}>
-              {integrations?.triggerDev.isConfigured ? "V3 Orchestrator" : "Direct Runner"}
+            <span
+              className={
+                integrations?.triggerDev.isConfigured
+                  ? 'text-emerald-700'
+                  : 'text-amber-800'
+              }
+            >
+              {integrations?.triggerDev.isConfigured
+                ? 'V3 Orchestrator'
+                : 'Direct Runner'}
             </span>
           </span>
         </div>
@@ -162,12 +182,13 @@ export function WorkflowExecutionPanel({
           <span className="flex items-center gap-1 font-semibold text-xs text-indigo-700">
             <span
               className={`h-1.5 w-1.5 rounded-full ${
-                integrations?.agents?.gemini.isConfigured || integrations?.agents?.grok.isConfigured
-                  ? "bg-indigo-500 animate-pulse"
-                  : "bg-zinc-400"
+                integrations?.agents?.gemini.isConfigured ||
+                integrations?.agents?.grok.isConfigured
+                  ? 'bg-indigo-500 animate-pulse'
+                  : 'bg-zinc-400'
               }`}
             />
-            <span>{workflow.aiModel || "Gemini 2.5 Pro"}</span>
+            <span>{workflow.aiModel || 'Gemini 2.5 Pro'}</span>
           </span>
         </div>
       </div>
@@ -186,7 +207,10 @@ export function WorkflowExecutionPanel({
           </div>
 
           <div className="text-[11px] text-emerald-800">
-            Session: <span className="font-mono font-medium">{cloudResult.sessionId}</span>
+            Session:{' '}
+            <span className="font-mono font-medium">
+              {cloudResult.sessionId}
+            </span>
           </div>
 
           {cloudResult.liveViewUrl && (
@@ -207,6 +231,8 @@ export function WorkflowExecutionPanel({
           {errorMessage}
         </div>
       )}
+
+      <ScheduleCard workflowId={workflow.id} />
 
       {/* Action Buttons */}
       <div className="space-y-1.5 pt-1">

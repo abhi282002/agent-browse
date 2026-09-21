@@ -4,13 +4,34 @@ import { useState } from 'react';
 import { useWorkflowManager } from './hooks/useWorkflowManager';
 import { WorkflowCanvas } from './WorkflowCanvas';
 import { WorkflowSidebar } from './WorkflowSidebar';
-import { NodePalette } from './nodes/NodePalette';
+import { NodePaletteSidebar } from './nodes/NodePaletteSidebar';
 import { NodeCatalogModal } from './nodes/NodeCatalogModal';
 import { NodeConfigDrawer } from './nodes/NodeConfigDrawer';
 import { AdminNodeManagerModal } from './admin/AdminNodeManagerModal';
 import { EditWorkflowModal } from './modals/EditWorkflowModal';
 import { CreateWorkflowView } from './views/CreateWorkflowView';
-import { BotIcon, SparklesIcon } from '@/components/ui/icons';
+import { Button } from '@/components/ui/button';
+import { BotIcon, SparklesIcon, PlayIcon } from '@/components/ui/icons';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet';
+import { ScheduleCard } from './execution/ScheduleCard';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { AlertTriangle, X } from 'lucide-react';
+import type { NodeTemplate } from './types';
 
 interface WorkflowDashboardProps {
   initialCreateMode?: boolean;
@@ -38,6 +59,8 @@ export function WorkflowDashboard({
     saveStatus,
     lastSavedAt,
     isSaving,
+    executionError,
+    clearExecutionError,
   } = useWorkflowManager();
 
   const [isCreateView, setIsCreateView] = useState(initialCreateMode);
@@ -45,6 +68,19 @@ export function WorkflowDashboard({
   const [isConfigDrawerOpen, setIsConfigDrawerOpen] = useState(false);
   const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isScheduleSheetOpen, setIsScheduleSheetOpen] = useState(false);
+
+  // Adapter: NodePaletteSidebar passes overrides (url, actionSummary, title)
+  const handleAddNodeWithOverrides = (
+    template: NodeTemplate,
+    overrides?: { url?: string; actionSummary?: string; title?: string },
+  ) => {
+    addNode(template, {
+      url: overrides?.url || undefined,
+      actionSummary: overrides?.actionSummary || undefined,
+      title: overrides?.title || undefined,
+    });
+  };
 
   // If create workflow view is open
   if (isCreateView) {
@@ -73,37 +109,42 @@ export function WorkflowDashboard({
           Create your first autonomous browser agent workflow to start
           automating tasks with Chromium and AI vision.
         </p>
-        <button
-          type="button"
+        <Button
           onClick={() => setIsCreateView(true)}
-          className="mt-5 flex items-center gap-2 rounded-xl bg-zinc-900 px-4 py-2 text-xs font-semibold text-white hover:bg-zinc-800 shadow-sm transition-all cursor-pointer"
+          className="mt-5 gap-2"
+          size="sm"
         >
           <SparklesIcon className="h-3.5 w-3.5 text-emerald-400" />
           <span>+ Create New Workflow</span>
-        </button>
+        </Button>
       </div>
     );
   }
 
   return (
     <div className="w-full flex flex-col gap-4">
-      {/* 2-Column Responsive Layout: Grid Canvas on Left, Workflow Details Sidebar on Right */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-        {/* Left: React Flow Grid Canvas (8 cols) */}
-        <div className="lg:col-span-8 flex flex-col gap-3">
-          {/* Top Canvas Bar with Node Palette & Admin Studio Trigger */}
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <NodePalette
-              onAddNode={addNode}
-              onOpenCatalog={() => setIsCatalogOpen(true)}
-            />
+      {/* 2-Column Layout: NodePaletteSidebar (3 cols) | Canvas Studio (9 cols) */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
 
-            <div className="flex items-center gap-2 text-[11px] text-zinc-500 font-mono">
+        {/* Left: Node Palette Sidebar (3 cols) */}
+        <div className="lg:col-span-3 xl:col-span-3 lg:sticky lg:top-[68px] lg:h-[calc(100vh-140px)] min-h-[620px] overflow-hidden overscroll-contain">
+          <NodePaletteSidebar
+            onAddNode={handleAddNodeWithOverrides}
+            onOpenCatalog={() => setIsCatalogOpen(true)}
+          />
+        </div>
+
+        {/* Center & Right: React Flow Canvas Studio (9 cols) */}
+        <div className="lg:col-span-9 xl:col-span-9 flex flex-col gap-2.5">
+          {/* Studio Top Bar with Left Controls & Top-Right Actions */}
+          <div className="flex items-center justify-between gap-3 flex-wrap bg-white/80 backdrop-blur-xs p-2.5 rounded-2xl border border-zinc-200/90 shadow-2xs">
+            {/* Left: Save + Admin Studio + Target URL pill + Sync status + Node count */}
+            <div className="flex items-center gap-2 flex-wrap text-[11px] font-mono">
               <button
                 type="button"
                 onClick={() => saveWorkflow()}
                 disabled={isSaving}
-                className={`flex items-center gap-1 rounded-lg border px-2.5 py-0.5 text-[11px] font-bold transition-all cursor-pointer ${
+                className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer ${
                   saveStatus === 'saved'
                     ? 'border-emerald-300 bg-emerald-50 text-emerald-800'
                     : saveStatus === 'error'
@@ -133,15 +174,25 @@ export function WorkflowDashboard({
               <button
                 type="button"
                 onClick={() => setIsAdminModalOpen(true)}
-                className="flex items-center gap-1 rounded-lg border border-amber-300/80 bg-amber-50 px-2 py-0.5 text-[11px] font-bold text-amber-800 hover:bg-amber-100 transition-colors cursor-pointer"
+                className="flex items-center gap-1 rounded-lg border border-amber-300/80 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800 hover:bg-amber-100 transition-colors cursor-pointer"
                 title="Admin studio to create, edit, or customize Free/PRO nodes"
               >
                 <span>⚙️ Admin Node Studio</span>
               </button>
 
-              <span className="hidden sm:inline">•</span>
+              {/* Workflow Settings Button */}
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(true)}
+                className="hidden sm:flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 transition-colors cursor-pointer"
+                title="Edit Workflow Settings & Configuration"
+              >
+                <span>⚙️ Settings</span>
+              </button>
 
-              <span className="hidden sm:flex items-center gap-1">
+              <span className="hidden md:inline text-zinc-300">•</span>
+
+              <span className="hidden md:flex items-center gap-1">
                 {isSyncing ? (
                   <>
                     <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
@@ -150,18 +201,118 @@ export function WorkflowDashboard({
                 ) : (
                   <>
                     <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                    <span className="text-emerald-700 font-medium">
-                      DB Synced
-                    </span>
+                    <span className="text-emerald-700 font-medium">DB Synced</span>
                   </>
                 )}
               </span>
-              <span className="hidden sm:inline">•</span>
-              <span className="hidden sm:inline">
+
+              <span className="hidden lg:inline text-zinc-300">•</span>
+              <span className="hidden lg:inline text-zinc-500">
                 Nodes: {activeWorkflow.nodes.length}
               </span>
             </div>
+
+            {/* Right: Switch Workflow + Edit Settings + + New + Run Workflow */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Switch Workflow dropdown */}
+              <div className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50/80 px-2.5 py-1 shadow-2xs hover:border-zinc-300 transition-colors">
+                <span className="text-xs">🗂️</span>
+                <select
+                  value={activeWorkflow.id}
+                  onChange={(e) => selectWorkflow(e.target.value)}
+                  className="bg-transparent text-xs font-semibold text-zinc-800 focus:outline-none cursor-pointer max-w-[160px] sm:max-w-[220px] truncate"
+                  title="Switch Active Workflow"
+                >
+                  {workflows.map((wf) => (
+                    <option key={wf.id} value={wf.id}>
+                      {wf.name} ({wf.nodes.length} steps)
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Edit Workflow */}
+              <button
+                type="button"
+                onClick={() => setIsEditModalOpen(true)}
+                className="flex items-center gap-1 rounded-xl border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-colors cursor-pointer shadow-2xs"
+                title="Edit Workflow Settings & Target URL"
+              >
+                <span>✏️</span>
+                <span className="hidden sm:inline">Edit</span>
+              </button>
+
+              {/* Schedule Workflow */}
+              <button
+                type="button"
+                onClick={() => setIsScheduleSheetOpen(true)}
+                className="flex items-center gap-1 rounded-xl border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-colors cursor-pointer shadow-2xs"
+                title="Set up automated schedule for this workflow"
+              >
+                <span>⏰</span>
+                <span className="hidden sm:inline">Schedule</span>
+              </button>
+
+              {/* + New Workflow */}
+              <button
+                type="button"
+                onClick={() => setIsCreateView(true)}
+                className="flex items-center gap-1 rounded-xl border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-colors cursor-pointer shadow-2xs"
+                title="Create a new workflow blueprint"
+              >
+                <SparklesIcon className="h-3.5 w-3.5 text-emerald-500" />
+                <span className="hidden sm:inline">New</span>
+              </button>
+
+              {/* Run Workflow Button */}
+              <button
+                type="button"
+                onClick={() => runPipeline()}
+                disabled={isRunning}
+                className={`flex items-center gap-1.5 rounded-xl px-4 py-1.5 text-xs font-bold shadow-sm transition-all cursor-pointer ${
+                  isRunning
+                    ? "bg-amber-600 text-white cursor-not-allowed"
+                    : "bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white shadow-emerald-600/20"
+                } disabled:opacity-80`}
+                title="Execute workflow with autonomous browser agent"
+              >
+                {isRunning ? (
+                  <>
+                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                    <span>Running Agent...</span>
+                  </>
+                ) : (
+                  <>
+                    <PlayIcon className="h-3.5 w-3.5 fill-current" />
+                    <span>Run Workflow</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
+
+          {/* Execution Error Notice using shadcn Alert */}
+          {executionError && (
+            <div className="px-6 py-2.5 bg-rose-50/50 border-b border-rose-200/60">
+              <Alert variant="destructive" className="flex items-center justify-between border-rose-200 bg-white shadow-2xs py-2 px-3">
+                <div className="flex items-center gap-2.5">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
+                  <div>
+                    <AlertTitle className="text-xs font-bold text-rose-900">Execution Notice</AlertTitle>
+                    <AlertDescription className="text-xs text-rose-700">{executionError}</AlertDescription>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={clearExecutionError}
+                  className="p-1 hover:bg-rose-50 rounded text-rose-500 hover:text-rose-700 cursor-pointer transition-colors"
+                  title="Dismiss notification"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </Alert>
+            </div>
+          )}
 
           {/* React Flow Interactive Grid Canvas */}
           <WorkflowCanvas
@@ -169,31 +320,15 @@ export function WorkflowDashboard({
             workflowId={activeWorkflow.id}
             initialNodes={activeWorkflow.nodes}
             initialEdges={activeWorkflow.edges}
-            onSelectNode={setSelectedNode}
+            onSelectNode={(node) => {
+              setSelectedNode(node);
+              if (node) setIsConfigDrawerOpen(true);
+            }}
             onSaveWorkflow={saveWorkflow}
             onGraphChange={updateGraph}
             isSaving={isSaving}
             saveStatus={saveStatus}
             lastSavedAt={lastSavedAt}
-          />
-        </div>
-
-        {/* Right: Sidebar with Workflow Name, Execution Trigger & Node Details (4 cols) */}
-        <div className="lg:col-span-4 flex flex-col">
-          <WorkflowSidebar
-            workflow={activeWorkflow}
-            allWorkflows={workflows}
-            onSelectWorkflow={selectWorkflow}
-            selectedNode={selectedNode}
-            onOpenCreateModal={() => setIsCreateView(true)}
-            onOpenEditWorkflow={() => setIsEditModalOpen(true)}
-            onOpenNodeCatalog={() => setIsCatalogOpen(true)}
-            onOpenNodeConfig={() => setIsConfigDrawerOpen(true)}
-            onRunWorkflow={runPipeline}
-            isRunning={isRunning}
-            onSaveWorkflow={() => saveWorkflow()}
-            isSaving={isSaving}
-            saveStatus={saveStatus}
           />
         </div>
       </div>
@@ -205,6 +340,24 @@ export function WorkflowDashboard({
         onClose={() => setIsEditModalOpen(false)}
         onSave={updateWorkflowDetails}
       />
+
+      {/* Schedule Sheet */}
+      <Sheet open={isScheduleSheetOpen} onOpenChange={setIsScheduleSheetOpen}>
+        <SheetContent side="right" className="w-full sm:max-w-sm p-0 flex flex-col">
+          <SheetHeader className="px-5 pt-5 pb-4 border-b border-zinc-100">
+            <SheetTitle className="text-sm font-bold text-zinc-900 flex items-center gap-2">
+              <span>⏰</span>
+              <span>Workflow Schedule</span>
+            </SheetTitle>
+            <SheetDescription className="text-xs text-zinc-500">
+              Automate <span className="font-medium text-zinc-700">{activeWorkflow.name}</span> to run on a recurring schedule via Trigger.dev.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto px-4 py-4">
+            <ScheduleCard workflowId={activeWorkflow.id} />
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Node Catalog Modal for Customers */}
       <NodeCatalogModal
@@ -230,6 +383,36 @@ export function WorkflowDashboard({
         onSave={updateNode}
         onDelete={deleteNode}
       />
+
+      {/* Shadcn Alert Dialog for Execution / Validation Notices */}
+      <AlertDialog
+        open={Boolean(executionError)}
+        onOpenChange={(open) => {
+          if (!open) clearExecutionError();
+        }}
+      >
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-2 text-rose-600 mb-1">
+              <AlertTriangle className="h-5 w-5" />
+              <AlertDialogTitle className="text-base font-bold text-zinc-900">
+                Workflow Notice
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-sm text-zinc-600 leading-relaxed">
+              {executionError}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction
+              onClick={clearExecutionError}
+              className="bg-zinc-900 hover:bg-zinc-800 text-white font-medium text-xs px-4 py-2 rounded-lg cursor-pointer"
+            >
+              Acknowledge
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

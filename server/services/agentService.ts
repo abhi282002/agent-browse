@@ -252,10 +252,18 @@ Analyze the following news webpage content and extract/summarize stories specifi
 For EACH category found in the text, extract and summarize ALL the distinct news stories provided (up to 3-5 stories per category). Do not limit each category to just one single story. Format the result strictly as a JSON array of objects where each story has these exact keys:
 [
   {
-    "category": "<Full formal category name, e.g. AI & Technology, World & Defense, Sports, Politics & National, Crime & Law>",
+    "category": "<Full formal category name, e.g. AI & Technology, World & Defense, Sports, Politics & National, Crime & Law, Technology, Health, Culture, Arts, Travel, Earth>",
     "heading": "<Concise, punchy news headline>",
     "subheading": "<1 sentence contextual deck / subheading>",
-    "text": "<2-3 sentence clear, objective summary of the event>"
+    "text": "<2-3 paragraph comprehensive, detailed summary of the event>",
+    "author": "<Author or reporter name, e.g. Staff Reporter / News Desk>",
+    "publishedDate": "<Publication date or timestamp>",
+    "keyPoints": [
+      "<Crucial fact or event 1>",
+      "<Crucial fact or event 2>",
+      "<Crucial fact or event 3>"
+    ],
+    "url": "<Original article URL if present in the text>"
   }
 ]
 
@@ -323,6 +331,11 @@ ${input.content.slice(0, 16000)}
     }
 
     // Fallback simulation / default extraction
+    const nowStr = new Date().toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
     const fallbackItems: CategorizedNewsItem[] = (
       input.categories.length > 0
         ? input.categories
@@ -330,8 +343,16 @@ ${input.content.slice(0, 16000)}
     ).map((cat) => ({
       category: cat.charAt(0).toUpperCase() + cat.slice(1),
       heading: `Breaking Developments in ${cat.charAt(0).toUpperCase() + cat.slice(1)}`,
-      subheading: `Live updates and primary reports monitored from ${input.targetUrl || "the news desk"}.`,
+      subheading: `Live updates and primary reports monitored from ${input.targetUrl || "https://timesofindia.indiatimes.com/"}.`,
       text: `Key coverage indicates rapid developments in the ${cat} sector today. Analysts and correspondents report significant shifts as events unfold across the wire.`,
+      author: "Intelligence Wire Desk",
+      publishedDate: nowStr,
+      keyPoints: [
+        `Key developments reported in the ${cat} sector today.`,
+        `Ongoing updates tracked from verified regional correspondents.`,
+        `Intelligence desk continues monitoring primary wire updates.`,
+      ],
+      url: input.targetUrl || "https://timesofindia.indiatimes.com/",
     }));
 
     const formattedBriefing = fallbackItems
@@ -355,6 +376,10 @@ export interface CategorizedNewsItem {
   heading: string;
   subheading: string;
   text: string;
+  author?: string;
+  publishedDate?: string;
+  keyPoints?: string[];
+  url?: string;
 }
 
 export interface CategorizedNewsDigestResult {

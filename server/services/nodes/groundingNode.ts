@@ -14,8 +14,33 @@ export const executeGroundingNode: NodeHandler = async (node, ctx) => {
   logs.push(`Executing Stagehand observe for grounding: "${instruction}"`);
 
   if (typeof ctx.stagehand?.observe === 'function') {
-    const observeRes = await ctx.stagehand.observe(instruction);
-    logs.push('DOM grounding & vision snapshot captured');
+    const activePage =
+      (await ctx.stagehand?.browser?.context?.activePage().catch(() => undefined)) ||
+      ctx.page;
+    if (activePage) {
+      await activePage.waitForTimeout(1000).catch(() => {});
+    }
+
+    let observeRes: { data?: unknown } | null = null;
+    try {
+      observeRes = (await ctx.stagehand.observe(instruction)) as { data?: unknown };
+      logs.push('DOM grounding & vision snapshot captured');
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      if (/no frame with given id|frame.*not found|target.*not found/i.test(errMsg)) {
+        logs.push('⚠ Frame busy during grounding observe. Retrying after stabilization...');
+        if (activePage) await activePage.waitForTimeout(2500).catch(() => {});
+        try {
+          observeRes = (await ctx.stagehand.observe(instruction)) as { data?: unknown };
+          logs.push('✓ DOM grounding snapshot captured on retry');
+        } catch (retryErr) {
+          logs.push(`Grounding note: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`);
+        }
+      } else {
+        throw err;
+      }
+    }
+
     return {
       output: observeRes?.data
         ? { observedActions: observeRes.data }
