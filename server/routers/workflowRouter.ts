@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, publicProcedure } from "@/server/trpc/trpc";
+import { router, publicProcedure, protectedProcedure } from "@/server/trpc/trpc";
 import { WorkflowService } from "@/server/services/workflowService";
 
 export const workflowRouter = router({
@@ -13,7 +13,7 @@ export const workflowRouter = router({
       return WorkflowService.getById(input.id);
     }),
 
-  create: publicProcedure
+  create: protectedProcedure
     .input(
       z.object({
         name: z.string().min(1, "Workflow name is required"),
@@ -28,10 +28,10 @@ export const workflowRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      return WorkflowService.create(input, ctx.user?.id);
+      return WorkflowService.create(input, ctx.user.id);
     }),
 
-  update: publicProcedure
+  update: protectedProcedure
     .input(
       z.object({
         id: z.string(),
@@ -48,12 +48,12 @@ export const workflowRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       const { id, ...data } = input;
-      return WorkflowService.update(id, data, ctx.user?.id);
+      return WorkflowService.update(id, data, ctx.user.id);
     }),
 
-  delete: publicProcedure
+  delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input, ctx }) => {
-      return WorkflowService.delete(input.id, ctx.user?.id);
+      return WorkflowService.delete(input.id, ctx.user.id);
     }),
 });

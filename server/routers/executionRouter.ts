@@ -71,9 +71,21 @@ export const executionRouter = router({
         if (input.nodes.length === 0) {
           throw new Error('Workflow has no step nodes to execute.');
         }
-        const resolvedEmail = input.userEmail || ctx.user?.email || undefined;
+        const resolvedTargetUrl =
+          (input.targetUrl && input.targetUrl.startsWith('http')
+            ? input.targetUrl
+            : undefined) ||
+          input.nodes.find((n) => n.data?.url && n.data.url.startsWith('http'))
+            ?.data.url ||
+          '';
+        const resolvedEmail =
+          input.userEmail ||
+          ctx.user?.email ||
+          input.nodes.find((n) => n.data?.url?.includes('@'))?.data.url ||
+          undefined;
         return TriggerDevService.triggerWorkflow({
           ...input,
+          targetUrl: resolvedTargetUrl,
           userEmail: resolvedEmail,
         });
       },

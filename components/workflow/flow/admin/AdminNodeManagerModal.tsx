@@ -12,6 +12,7 @@ interface AdminNodeManagerModalProps {
 
 export function AdminNodeManagerModal({ isOpen, onClose }: AdminNodeManagerModalProps) {
   const utils = trpc.useContext();
+  const { data: currentUser } = trpc.auth.me.useQuery();
   const { data: templates, isLoading } = trpc.nodeTemplate.getAll.useQuery();
 
   const [isCreating, setIsCreating] = useState(false);
@@ -76,7 +77,7 @@ export function AdminNodeManagerModal({ isOpen, onClose }: AdminNodeManagerModal
     },
   });
 
-  if (!isOpen) return null;
+  if (!isOpen || currentUser?.role !== "admin") return null;
 
   const resetForm = () => {
     setTitle("");

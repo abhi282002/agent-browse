@@ -244,6 +244,14 @@ export class BrowserbaseService {
       const pipelineOutputs: Record<string, unknown> = {};
       let previousStepOutput: Record<string, unknown> | undefined = undefined;
 
+      let currentTargetUrl =
+        (payload.targetUrl && payload.targetUrl.startsWith('http')
+          ? payload.targetUrl
+          : undefined) ||
+        payload.nodes.find((n) => n.data?.url && n.data.url.startsWith('http'))
+          ?.data.url ||
+        '';
+
       for (let i = 0; i < payload.nodes.length; i++) {
         const node = payload.nodes[i];
         const stepNum = i + 1;
@@ -255,6 +263,10 @@ export class BrowserbaseService {
         const logs: string[] = [`Starting step: ${node.data.title}`];
 
         try {
+          if (node.data?.url && node.data.url.startsWith('http')) {
+            currentTargetUrl = node.data.url;
+          }
+
           // Dynamically resolve the active page in case a prior step opened a new tab, redirected, or navigated
           const activePage =
             (await browser.context.activePage().catch(() => undefined)) || page;
@@ -263,15 +275,24 @@ export class BrowserbaseService {
           const nodeExecution = await executeNode(node, {
             stagehand,
             page: activePage,
-            targetUrl: payload.targetUrl,
+            targetUrl: currentTargetUrl,
             aiModel: payload.aiModel,
             userEmail: payload.userEmail,
             pipelineOutputs,
             previousStepOutput,
+            workflowNodes: payload.nodes,
           });
 
           logs.push(...nodeExecution.logs);
           if (nodeExecution.output) {
+            if (
+              typeof nodeExecution.output.targetUrl === 'string' &&
+              nodeExecution.output.targetUrl.startsWith('http')
+            ) {
+              currentTargetUrl = nodeExecution.output.targetUrl;
+            } else if (!nodeExecution.output.targetUrl && currentTargetUrl) {
+              nodeExecution.output.targetUrl = currentTargetUrl;
+            }
             pipelineOutputs[node.id] = nodeExecution.output;
             previousStepOutput = nodeExecution.output;
           }
@@ -315,7 +336,7 @@ export class BrowserbaseService {
       return {
         workflowId: payload.workflowId,
         workflowName: payload.workflowName,
-        targetUrl: payload.targetUrl,
+        targetUrl: currentTargetUrl || payload.targetUrl,
         sessionId,
         liveViewUrl: `https://browserbase.com/sessions/${sessionId}`,
         status: stepResults.some((s) => s.status === 'failed')

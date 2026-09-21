@@ -16,6 +16,7 @@ import { executeNewsGatherNode } from './nodes/newsGatherNode';
 import { executeNewsSummarizationNode } from './nodes/newsSummarizationNode';
 import { executeEmailNode } from './nodes/emailNode';
 import { executeOpenUrlNode } from './nodes/openUrlNode';
+import { pickFirstString } from './nodes/nodeUtils';
 
 export type {
   WorkflowExecutionNode,
@@ -25,6 +26,7 @@ export type {
 };
 
 export {
+  pickFirstString,
   executeNavigationNode,
   executeGroundingNode,
   executeActionNode,

@@ -10,6 +10,7 @@ interface NodeCatalogModalProps {
   onClose: () => void;
   onSelectTemplate: (template: NodeTemplate) => void;
   onOpenAdmin?: () => void;
+  isAdmin?: boolean;
 }
 
 export function NodeCatalogModal({
@@ -17,6 +18,7 @@ export function NodeCatalogModal({
   onClose,
   onSelectTemplate,
   onOpenAdmin,
+  isAdmin = false,
 }: NodeCatalogModalProps) {
   const [search, setSearch] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -74,7 +76,7 @@ export function NodeCatalogModal({
           </div>
 
           <div className="flex items-center gap-2">
-            {onOpenAdmin && (
+            {isAdmin && onOpenAdmin && (
               <button
                 type="button"
                 onClick={() => {
@@ -129,20 +131,28 @@ export function NodeCatalogModal({
         {filteredTemplates.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-8 text-center rounded-xl border border-dashed border-zinc-200 bg-zinc-50">
             <p className="text-xs font-semibold text-zinc-700">No node templates found in database</p>
-            <p className="text-[11px] text-zinc-500 mt-1 max-w-xs">
-              Admins can publish custom nodes and configure Free vs PRO tiers via Admin Node Studio.
-            </p>
-            {onOpenAdmin && (
-              <button
-                type="button"
-                onClick={() => {
-                  onClose();
-                  onOpenAdmin();
-                }}
-                className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors"
-              >
-                ⚙️ Open Admin Node Studio
-              </button>
+            {isAdmin ? (
+              <>
+                <p className="text-[11px] text-zinc-500 mt-1 max-w-xs">
+                  Admins can publish custom nodes and configure Free vs PRO tiers via Admin Node Studio.
+                </p>
+                {onOpenAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onClose();
+                      onOpenAdmin();
+                    }}
+                    className="mt-3 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100 transition-colors"
+                  >
+                    ⚙️ Open Admin Node Studio
+                  </button>
+                )}
+              </>
+            ) : (
+              <p className="text-[11px] text-zinc-500 mt-1 max-w-xs">
+                No step node templates are currently available.
+              </p>
             )}
           </div>
         ) : (

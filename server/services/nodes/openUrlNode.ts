@@ -1,4 +1,5 @@
 import type { NodeHandler } from './types';
+import { pickFirstString } from './nodeUtils';
 
 /**
  * Open URL Archetype Handler
@@ -8,10 +9,7 @@ import type { NodeHandler } from './types';
  */
 export const executeOpenUrlNode: NodeHandler = async (node, ctx) => {
   const logs: string[] = [];
-  const targetUrl =
-    node.data.url && node.data.url.startsWith('http')
-      ? node.data.url
-      : ctx.targetUrl;
+  const targetUrl = pickFirstString(node.data?.url, ctx.targetUrl);
 
   if (!targetUrl) {
     logs.push('⚠ No URL provided for Open URL node — skipping navigation');

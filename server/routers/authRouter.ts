@@ -50,6 +50,7 @@ export const authRouter = router({
       const cookieValue = `${SESSION_COOKIE_NAME}=${result.sessionToken}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_MAX_AGE}${
         process.env.NODE_ENV === "production" ? "; Secure" : ""
       }`;
+      
       ctx.responseHeaders.append("Set-Cookie", cookieValue);
 
       return result.user;

@@ -27,6 +27,7 @@ export interface NodeExecutionContext {
   userEmail?: string;
   pipelineOutputs?: Record<string, unknown>;
   previousStepOutput?: Record<string, unknown>;
+  workflowNodes?: WorkflowExecutionNode[];
 }
 
 export interface NodeExecutionOutput {

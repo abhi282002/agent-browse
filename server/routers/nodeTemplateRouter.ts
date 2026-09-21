@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { router, publicProcedure } from "@/server/trpc/trpc";
+import { router, publicProcedure, protectedProcedure, adminProcedure } from "@/server/trpc/trpc";
 import { NodeTemplateService } from "@/server/services/nodeTemplateService";
 
 export const nodeTemplateRouter = router({
@@ -7,7 +7,7 @@ export const nodeTemplateRouter = router({
     return NodeTemplateService.list();
   }),
 
-  create: publicProcedure
+  create: adminProcedure
     .input(
       z.object({
         title: z.string().min(1, "Title is required"),
@@ -28,7 +28,7 @@ export const nodeTemplateRouter = router({
       return NodeTemplateService.create(input);
     }),
 
-  update: publicProcedure
+  update: protectedProcedure
     .input(
       z.object({
         id: z.string(),
@@ -51,7 +51,7 @@ export const nodeTemplateRouter = router({
       return NodeTemplateService.update(id, data);
     }),
 
-  delete: publicProcedure
+  delete: adminProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ input }) => {
       return NodeTemplateService.delete(input.id);

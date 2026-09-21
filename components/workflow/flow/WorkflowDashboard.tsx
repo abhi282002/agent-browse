@@ -3,6 +3,10 @@
 import { useState } from 'react';
 import { useWorkflowManager } from './hooks/useWorkflowManager';
 import { WorkflowCanvas } from './WorkflowCanvas';
+import {
+  LiveblocksWorkflowProvider,
+  CollaborativeCanvas,
+} from './liveblocks';
 import { WorkflowSidebar } from './WorkflowSidebar';
 import { NodePaletteSidebar } from './nodes/NodePaletteSidebar';
 import { NodeCatalogModal } from './nodes/NodeCatalogModal';
@@ -31,7 +35,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { AlertTriangle, X } from 'lucide-react';
-import type { NodeTemplate } from './types';
+import type { NodeTemplate, WorkflowNodeType } from './types';
 
 interface WorkflowDashboardProps {
   initialCreateMode?: boolean;
@@ -61,6 +65,7 @@ export function WorkflowDashboard({
     isSaving,
     executionError,
     clearExecutionError,
+    isAdmin,
   } = useWorkflowManager();
 
   const [isCreateView, setIsCreateView] = useState(initialCreateMode);
@@ -70,16 +75,29 @@ export function WorkflowDashboard({
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isScheduleSheetOpen, setIsScheduleSheetOpen] = useState(false);
 
+  // Real-time synchronization state for external drawer/palette actions
+  const [externalNodeUpdate, setExternalNodeUpdate] = useState<{
+    id: string;
+    data: Partial<WorkflowNodeType['data']>;
+  } | null>(null);
+  const [externalNodeAdd, setExternalNodeAdd] = useState<{
+    template: NodeTemplate;
+    customData?: Partial<WorkflowNodeType['data']>;
+  } | null>(null);
+  const [externalNodeDeleteId, setExternalNodeDeleteId] = useState<string | null>(null);
+
   // Adapter: NodePaletteSidebar passes overrides (url, actionSummary, title)
   const handleAddNodeWithOverrides = (
     template: NodeTemplate,
     overrides?: { url?: string; actionSummary?: string; title?: string },
   ) => {
-    addNode(template, {
+    const customData = {
       url: overrides?.url || undefined,
       actionSummary: overrides?.actionSummary || undefined,
       title: overrides?.title || undefined,
-    });
+    };
+    addNode(template, customData);
+    setExternalNodeAdd({ template, customData });
   };
 
   // If create workflow view is open
@@ -171,14 +189,16 @@ export function WorkflowDashboard({
                 )}
               </button>
 
-              <button
-                type="button"
-                onClick={() => setIsAdminModalOpen(true)}
-                className="flex items-center gap-1 rounded-lg border border-amber-300/80 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800 hover:bg-amber-100 transition-colors cursor-pointer"
-                title="Admin studio to create, edit, or customize Free/PRO nodes"
-              >
-                <span>⚙️ Admin Node Studio</span>
-              </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setIsAdminModalOpen(true)}
+                  className="flex items-center gap-1 rounded-lg border border-amber-300/80 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800 hover:bg-amber-100 transition-colors cursor-pointer"
+                  title="Admin studio to create, edit, or customize Free/PRO nodes"
+                >
+                  <span>⚙️ Admin Node Studio</span>
+                </button>
+              )}
 
               {/* Workflow Settings Button */}
               <button
@@ -314,22 +334,45 @@ export function WorkflowDashboard({
             </div>
           )}
 
-          {/* React Flow Interactive Grid Canvas */}
-          <WorkflowCanvas
+          {/* Collaborative Liveblocks React Flow Canvas */}
+          <LiveblocksWorkflowProvider
             key={activeWorkflow.id}
             workflowId={activeWorkflow.id}
-            initialNodes={activeWorkflow.nodes}
-            initialEdges={activeWorkflow.edges}
-            onSelectNode={(node) => {
-              setSelectedNode(node);
-              if (node) setIsConfigDrawerOpen(true);
-            }}
-            onSaveWorkflow={saveWorkflow}
-            onGraphChange={updateGraph}
-            isSaving={isSaving}
-            saveStatus={saveStatus}
-            lastSavedAt={lastSavedAt}
-          />
+            fallback={
+              <WorkflowCanvas
+                workflowId={activeWorkflow.id}
+                initialNodes={activeWorkflow.nodes}
+                initialEdges={activeWorkflow.edges}
+                onSelectNode={(node) => {
+                  setSelectedNode(node);
+                  if (node) setIsConfigDrawerOpen(true);
+                }}
+                onSaveWorkflow={saveWorkflow}
+                onGraphChange={updateGraph}
+                isSaving={isSaving}
+                saveStatus={saveStatus}
+                lastSavedAt={lastSavedAt}
+              />
+            }
+          >
+            <CollaborativeCanvas
+              workflowId={activeWorkflow.id}
+              initialNodes={activeWorkflow.nodes}
+              initialEdges={activeWorkflow.edges}
+              onSelectNode={(node) => {
+                setSelectedNode(node);
+                if (node) setIsConfigDrawerOpen(true);
+              }}
+              onSaveWorkflow={saveWorkflow}
+              onGraphChange={updateGraph}
+              isSaving={isSaving}
+              saveStatus={saveStatus}
+              lastSavedAt={lastSavedAt}
+              externalNodeUpdate={externalNodeUpdate}
+              externalNodeAdd={externalNodeAdd}
+              externalNodeDeleteId={externalNodeDeleteId}
+            />
+          </LiveblocksWorkflowProvider>
         </div>
       </div>
 
@@ -365,23 +408,33 @@ export function WorkflowDashboard({
         onClose={() => setIsCatalogOpen(false)}
         onSelectTemplate={(template) => {
           addNode(template);
+          setExternalNodeAdd({ template });
         }}
-        onOpenAdmin={() => setIsAdminModalOpen(true)}
+        onOpenAdmin={isAdmin ? () => setIsAdminModalOpen(true) : undefined}
+        isAdmin={isAdmin}
       />
 
       {/* Admin Node Studio Modal */}
-      <AdminNodeManagerModal
-        isOpen={isAdminModalOpen}
-        onClose={() => setIsAdminModalOpen(false)}
-      />
+      {isAdmin && (
+        <AdminNodeManagerModal
+          isOpen={isAdminModalOpen}
+          onClose={() => setIsAdminModalOpen(false)}
+        />
+      )}
 
       {/* Node Configuration Drawer */}
       <NodeConfigDrawer
         node={selectedNode}
         isOpen={isConfigDrawerOpen}
         onClose={() => setIsConfigDrawerOpen(false)}
-        onSave={updateNode}
-        onDelete={deleteNode}
+        onSave={(nodeId, updatedData) => {
+          updateNode(nodeId, updatedData);
+          setExternalNodeUpdate({ id: nodeId, data: updatedData });
+        }}
+        onDelete={(nodeId) => {
+          deleteNode(nodeId);
+          setExternalNodeDeleteId(nodeId);
+        }}
       />
 
       {/* Shadcn Alert Dialog for Execution / Validation Notices */}

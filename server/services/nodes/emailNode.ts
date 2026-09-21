@@ -1,4 +1,5 @@
 import type { NodeHandler } from './types';
+import { pickFirstString } from './nodeUtils';
 import { EmailService } from '../emailService';
 import {
   buildWorkflowEmailHtml,
@@ -15,8 +16,10 @@ export const executeEmailNode: NodeHandler = async (node, ctx) => {
   const recipient =
     (node.data.url?.includes('@') ? node.data.url : undefined) ||
     ctx.userEmail ||
+    ctx.workflowNodes?.find((n) => n.data?.url?.includes('@'))?.data.url ||
     process.env.ALERT_EMAIL ||
-    'alerts@agentbrowse.com';
+    process.env.NODEMAILER_USER ||
+    'sharma312006@gmail.com';
 
   // Extract contextual results from previous steps (news digest, articles, summary, insights)
   const {
@@ -28,26 +31,27 @@ export const executeEmailNode: NodeHandler = async (node, ctx) => {
     totalStories,
   } = extractStepPipelineContext(ctx.previousStepOutput, ctx.pipelineOutputs);
 
-  const resolvedTargetUrl = (() => {
-    if (node.data.url && node.data.url.startsWith('http')) return node.data.url;
-    if (ctx.targetUrl && ctx.targetUrl.startsWith('http')) return ctx.targetUrl;
-    if (ctx.pipelineOutputs) {
-      for (const out of Object.values(ctx.pipelineOutputs)) {
-        if (out && typeof out === 'object') {
-          const obj = out as Record<string, unknown>;
-          if (typeof obj.url === 'string' && obj.url.startsWith('http')) return obj.url;
-          if (typeof obj.targetUrl === 'string' && obj.targetUrl.startsWith('http')) return obj.targetUrl;
-        }
-      }
-    }
-    return 'https://timesofindia.indiatimes.com/';
-  })();
+  const resolvedTargetUrl =
+    pickFirstString(
+      node.data.url && node.data.url.startsWith('http') ? node.data.url : '',
+      ctx.targetUrl && ctx.targetUrl.startsWith('http') ? ctx.targetUrl : '',
+      ctx.workflowNodes?.find((n) => n.data?.url && n.data.url.startsWith('http'))
+        ?.data.url,
+      newsDigest.length > 0 &&
+      newsDigest[0]?.url &&
+      newsDigest[0].url.startsWith('http')
+        ? newsDigest[0].url
+        : '',
+      'https://agentbrowse.com',
+    );
 
   const subject =
     (node.data.title && node.data.title !== 'Email Notification'
       ? node.data.title
       : undefined) ||
-    (totalStories > 0 || newsDigest.length > 0 || Object.keys(articlesByCategory).length > 0
+    (totalStories > 0 ||
+    newsDigest.length > 0 ||
+    Object.keys(articlesByCategory).length > 0
       ? 'Send Executive Briefing Email'
       : undefined) ||
     node.data.title ||
@@ -71,12 +75,12 @@ export const executeEmailNode: NodeHandler = async (node, ctx) => {
   } else if (Object.keys(articlesByCategory).length > 0) {
     categorizedDigestText = Object.entries(articlesByCategory)
       .map(
-        ([cat, arts]) =>
-          `[${cat.toUpperCase()}]\n` +
-          arts
+        ([category, articles]) =>
+          `[${category.toUpperCase()}]\n` +
+          articles
             .map(
-              (a, i) =>
-                `${i + 1}. ${a.headline}\n${a.summary}\nSource: ${a.url || ''}`,
+              (article, articleIndex) =>
+                `${articleIndex + 1}. ${article.headline}\n${article.summary}\nSource: ${article.url || ''}`,
             )
             .join('\n'),
       )
@@ -88,7 +92,8 @@ export const executeEmailNode: NodeHandler = async (node, ctx) => {
     : extractedSummary
       ? `Summary of Results:\n${extractedSummary}\n\n${
           keyInsights.length
-            ? 'Key Insights:\n' + keyInsights.map((i) => `• ${i}`).join('\n')
+            ? 'Key Insights:\n' +
+              keyInsights.map((insight) => `• ${insight}`).join('\n')
             : ''
         }`
       : defaultDescription;
@@ -98,7 +103,8 @@ export const executeEmailNode: NodeHandler = async (node, ctx) => {
     (typeof node.data.emailProvider === 'string'
       ? node.data.emailProvider
       : undefined) ||
-    node.data.metrics?.find((m) => m.label.toLowerCase() === 'provider')?.value ||
+    node.data.metrics?.find((m) => m.label.toLowerCase() === 'provider')
+      ?.value ||
     'resend';
 
   const providerType =
@@ -110,7 +116,9 @@ export const executeEmailNode: NodeHandler = async (node, ctx) => {
   const providerLabel =
     providerType === 'nodemailer' ? 'Nodemailer (SMTP)' : 'Resend API';
 
-  logs.push(`[Email Provider: ${providerLabel}] Preparing email dispatch to: ${recipient}`);
+  logs.push(
+    `[Email Provider: ${providerLabel}] Preparing email dispatch to: ${recipient}`,
+  );
   logs.push(`Subject: "${subject}"`);
   if (totalStories > 0) {
     logs.push(
@@ -130,18 +138,54 @@ export const executeEmailNode: NodeHandler = async (node, ctx) => {
     rawDataPreview,
   });
 
-  const sendRes = await EmailService.sendEmail(
-    {
-      to: recipient,
-      subject,
-      html,
-      text: bodyContent,
-    },
-    providerType,
-  );
+  let sendRes;
+  try {
+    sendRes = await EmailService.sendEmail(
+      {
+        to: recipient,
+        subject,
+        html,
+        text: bodyContent,
+      },
+      providerType,
+    );
+    if (sendRes.mode === 'simulation') {
+      const liveAlt = providerType === 'resend' ? 'nodemailer' : 'resend';
+      logs.push(
+        `Notice: ${providerLabel} returned simulated status. Dispatching live via ${liveAlt}...`,
+      );
+      const liveRes = await EmailService.sendEmail(
+        {
+          to: recipient,
+          subject,
+          html,
+          text: bodyContent,
+        },
+        liveAlt,
+      );
+      if (liveRes.mode === 'live') {
+        sendRes = liveRes;
+      }
+    }
+  } catch (err) {
+    const fallbackProvider =
+      providerType === 'resend' ? 'nodemailer' : 'resend';
+    logs.push(
+      `Primary dispatch via ${providerLabel} encountered an issue: ${err instanceof Error ? err.message : String(err)}. Retrying live delivery via ${fallbackProvider}...`,
+    );
+    sendRes = await EmailService.sendEmail(
+      {
+        to: recipient,
+        subject,
+        html,
+        text: bodyContent,
+      },
+      fallbackProvider,
+    );
+  }
 
   logs.push(
-    `Email dispatched successfully via ${providerLabel} (${sendRes.mode}): Message ID = ${sendRes.id}`,
+    `Email dispatched successfully via ${sendRes.provider} (${sendRes.mode}): Message ID = ${sendRes.id}`,
   );
 
   return {
@@ -158,4 +202,3 @@ export const executeEmailNode: NodeHandler = async (node, ctx) => {
     logs,
   };
 };
-

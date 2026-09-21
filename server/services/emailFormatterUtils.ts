@@ -1,3 +1,4 @@
+import { format } from 'date-fns';
 import type { CategorizedNewsItem } from './agentService';
 import type { ExtractedArticleJson } from './newsExtractionUtils';
 import { NEWS_CATEGORIES_CONFIG } from './newsExtractionUtils';
@@ -160,12 +161,7 @@ function resolveByline(art: ExtractedArticleJson, defaultDomain: string) {
   }
 
   const date =
-    art.publishedDate?.trim() ||
-    new Date().toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
+    art.publishedDate?.trim() || format(new Date(), 'MMM d, yyyy');
 
   return { author, date };
 }
@@ -344,13 +340,19 @@ export function formatArticlesByCategoryHtml(
  */
 export function buildWorkflowEmailHtml(options: EmailTemplateOptions): string {
   const domain = (() => {
-    if (!options.targetUrl) return 'timesofindia.indiatimes.com';
+    if (!options.targetUrl) return '';
     try {
       return new URL(options.targetUrl).hostname;
     } catch {
       return options.targetUrl;
     }
   })();
+
+  if (!domain) {
+    throw new Error(
+      'No target URL found for email notification. Please provide a target URL in the node data or ensure that a previous step provides a target URL.',
+    );
+  }
 
   // Guarantee articlesByCategory: if missing or empty, synthesize from newsDigest
   const articlesByCategory = options.articlesByCategory
@@ -370,7 +372,8 @@ export function buildWorkflowEmailHtml(options: EmailTemplateOptions): string {
       articlesByCategory[catKey].push({
         headline: item.heading,
         subheading: item.subheading,
-        author: item.author || `${domain.toUpperCase().split('.')[0]} News Desk`,
+        author:
+          item.author || `${domain.toUpperCase().split('.')[0]} News Desk`,
         publishedDate: item.publishedDate,
         summary: item.text,
         keyPoints: item.keyPoints,
@@ -392,7 +395,9 @@ export function buildWorkflowEmailHtml(options: EmailTemplateOptions): string {
       const topArt = arts[0];
       return {
         category: theme.label,
-        heading: topArt ? topArt.headline : `Breaking Developments in ${theme.label}`,
+        heading: topArt
+          ? topArt.headline
+          : `Breaking Developments in ${theme.label}`,
         subheading:
           topArt?.subheading ||
           `Live updates and primary reports monitored from https://${domain}/.`,
@@ -420,12 +425,7 @@ export function buildWorkflowEmailHtml(options: EmailTemplateOptions): string {
       (k) => (articlesByCategory?.[k]?.length || 0) > 0,
     ).length || newsDigest.length;
 
-  const nowFormatted = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
+  const nowFormatted = format(new Date(), 'EEEE, MMMM d, yyyy');
 
   // 1. Articles Section (Rich Multi-Category Stories with Full Source Links, Summary & KEY FACTS)
   const articlesHtml = formatArticlesByCategoryHtml(
@@ -645,7 +645,10 @@ export function extractStepPipelineContext(
         category: item.category,
       });
     }
-  } else if (newsDigest.length === 0 && Object.keys(articlesByCategory).length > 0) {
+  } else if (
+    newsDigest.length === 0 &&
+    Object.keys(articlesByCategory).length > 0
+  ) {
     for (const [catKey, arts] of Object.entries(articlesByCategory)) {
       const theme = getCategoryTheme(catKey);
       const topArt = arts[0];

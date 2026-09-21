@@ -1,4 +1,5 @@
 import type { NodeHandler } from './types';
+import { pickFirstString } from './nodeUtils';
 
 /**
  * Navigation Archetype Handler
@@ -6,14 +7,16 @@ import type { NodeHandler } from './types';
  */
 export const executeNavigationNode: NodeHandler = async (node, ctx) => {
   const logs: string[] = [];
-  const destinationUrl =
-    node.data.url && node.data.url.startsWith('http')
-      ? node.data.url
-      : ctx.targetUrl;
+  const destinationUrl = pickFirstString(node.data?.url, ctx.targetUrl);
+
+  if (!destinationUrl || !destinationUrl.startsWith('http')) {
+    throw new Error('Destination URL is invalid or not found.');
+  }
 
   const activePage =
-    (await ctx.stagehand?.browser?.context?.activePage().catch(() => undefined)) ||
-    ctx.page;
+    (await ctx.stagehand?.browser?.context
+      ?.activePage()
+      .catch(() => undefined)) || ctx.page;
 
   if (activePage && destinationUrl) {
     logs.push(`Navigating to URL: ${destinationUrl}`);
@@ -24,7 +27,9 @@ export const executeNavigationNode: NodeHandler = async (node, ctx) => {
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       if (/no frame with given id|frame.*not found/i.test(errMsg)) {
-        logs.push('⚠ Frame transition detected during navigation. Waiting for page to stabilize...');
+        logs.push(
+          '⚠ Frame transition detected during navigation. Waiting for page to stabilize...',
+        );
         await activePage.waitForTimeout(2500).catch(() => {});
         logs.push('Navigation stabilized');
       } else {
@@ -40,10 +45,14 @@ export const executeNavigationNode: NodeHandler = async (node, ctx) => {
     } catch (err) {
       const errorMsg = err instanceof Error ? err.message : String(err);
       if (/no frame with given id|frame.*not found/i.test(errorMsg)) {
-        logs.push('⚠ Frame transition detected during navigation action. Waiting for page to settle...');
+        logs.push(
+          '⚠ Frame transition detected during navigation action. Waiting for page to settle...',
+        );
         if (activePage) await activePage.waitForTimeout(2500).catch(() => {});
         await ctx.stagehand.act(actInstruction).catch((retryErr) => {
-          logs.push(`Navigation note: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`);
+          logs.push(
+            `Navigation note: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`,
+          );
         });
       } else {
         throw err;
@@ -52,13 +61,16 @@ export const executeNavigationNode: NodeHandler = async (node, ctx) => {
   }
 
   const currentActivePage =
-    (await ctx.stagehand?.browser?.context?.activePage().catch(() => undefined)) ||
-    activePage;
+    (await ctx.stagehand?.browser?.context
+      ?.activePage()
+      .catch(() => undefined)) || activePage;
 
   let currentTitle = '';
   let currentUrl = '';
   if (currentActivePage) {
-    currentUrl = await currentActivePage.url().catch(() => destinationUrl || '');
+    currentUrl = await currentActivePage
+      .url()
+      .catch(() => destinationUrl || '');
     currentTitle = await currentActivePage.title().catch(() => '');
   }
 

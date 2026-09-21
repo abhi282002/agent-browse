@@ -1,9 +1,9 @@
 import { Browserbase } from '@browserbasehq/sdk';
 import type { NodeHandler } from './types';
+import { pickFirstString } from './nodeUtils';
 import {
   ARTICLE_JSON_SCHEMA,
   buildCategorySearchQuery,
-  formatGatheredDocument,
   formatJsonArticlesToDocument,
   resolveNewsCategories,
   type ExtractedArticleJson,
@@ -15,6 +15,7 @@ import {
  * and Browserbase Fetch API with JSON Schema to extract structured article records.
  * Falls back seamlessly to the live browser session if JS rendering is required.
  */
+
 export const executeNewsGatherNode: NodeHandler = async (node, ctx) => {
   const logs: string[] = [];
 
@@ -28,16 +29,18 @@ export const executeNewsGatherNode: NodeHandler = async (node, ctx) => {
   );
 
   // Extract clean domain from targetUrl or active page
-  const rawUrl =
-    ctx.targetUrl ||
-    (node.data?.url && node.data.url.startsWith('http') ? node.data.url : '');
-  let domain = 'timesofindia.indiatimes.com';
+  const rawUrl = pickFirstString(ctx.targetUrl, node.data?.url);
+
+  if (!rawUrl || !rawUrl.startsWith('http')) {
+    throw new Error('URL Not Found.');
+  }
+
+  let domain: string;
+
   try {
-    if (rawUrl) {
-      domain = new URL(rawUrl).hostname;
-    }
+    domain = new URL(rawUrl).hostname;
   } catch {
-    domain = 'timesofindia.indiatimes.com';
+    throw new Error('Domain Name Invalid Please Check the Url And Try Again.');
   }
 
   logs.push(`Target news portal domain: ${domain}`);
@@ -129,7 +132,9 @@ export const executeNewsGatherNode: NodeHandler = async (node, ctx) => {
                   }
                 } catch (fetchErr) {
                   const errMsg =
-                    fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+                    fetchErr instanceof Error
+                      ? fetchErr.message
+                      : String(fetchErr);
                   logs.push(
                     `  Notice: Fetch API fallback for [${fullName} Story #${artIdx + 1}]: ${errMsg}`,
                   );
@@ -139,14 +144,16 @@ export const executeNewsGatherNode: NodeHandler = async (node, ctx) => {
                 if (!structuredStory) {
                   const pubDate =
                     searchArticle.publishedDate ||
-                    new Date().toLocaleDateString('en-US', {
+                    new Date().toLocaleDateString('en-IN', {
                       month: 'short',
                       day: 'numeric',
                       year: 'numeric',
                     });
-                  const portalName = domain.toUpperCase().split('.')[0] || 'WIRE';
+                  const portalName =
+                    domain.toUpperCase().split('.')[0] || 'WIRE';
                   const summaryText =
-                    (searchArticle as unknown as { description?: string }).description ||
+                    (searchArticle as unknown as { description?: string })
+                      .description ||
                     `Primary reporting on ${fullName}: ${searchArticle.title}. Key coverage indicates rapid developments as correspondents and analysts report significant shifts across the wire.`;
 
                   structuredStory = {
@@ -247,6 +254,8 @@ export const executeNewsGatherNode: NodeHandler = async (node, ctx) => {
       storiesByCategory: categoryHeadlinesMap,
       articles: articlesByCategory,
       gatheredDocument,
+      targetUrl: rawUrl,
+      url: rawUrl,
     },
     logs,
   };

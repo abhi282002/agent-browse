@@ -5,6 +5,7 @@ import {
   resolveNewsCategories,
 } from '../newsExtractionUtils';
 import { executeNewsGatherNode } from './newsGatherNode';
+import { pickFirstString } from './nodeUtils';
 
 /**
  * News Summarization Archetype Handler (news_summary)
@@ -16,9 +17,7 @@ export const executeNewsSummarizationNode: NodeHandler = async (node, ctx) => {
   const modelToUse = ctx.aiModel || 'Gemini 2.5 Flash';
 
   // Resolve target categories using NEWS_CATEGORIES_CONFIG as the single source of truth
-  const { categories, fullCategoriesList } = resolveNewsCategories(
-    node.data.payload,
-  );
+  const { fullCategoriesList } = resolveNewsCategories(node.data.payload);
 
   let gatheredContent = '';
 
@@ -75,19 +74,79 @@ export const executeNewsSummarizationNode: NodeHandler = async (node, ctx) => {
     }
   }
 
-  // 2. Fallback: If run standalone without a preceding collector node, execute browser gathering
-  if (!gatheredContent && ctx.page) {
+  // Resolve target news URL from node data, context, or workflow nodes
+  const resolvedTargetUrl = pickFirstString(
+    node.data?.url && node.data.url.startsWith('http') ? node.data.url : '',
+    ctx.targetUrl,
+    ctx.workflowNodes?.find((n) => n.data?.url && n.data.url.startsWith('http'))
+      ?.data.url,
+  );
+
+  // 2. If no preceding node gathered content, gather real news from the target URL
+  if (!gatheredContent && resolvedTargetUrl) {
     logs.push(
-      'No preceding news collector step detected — executing autonomous browser gathering...',
+      `Gathering real-time multi-category news stories from: ${resolvedTargetUrl}...`,
     );
-    const gatherRes = await executeNewsGatherNode(node, ctx);
-    logs.push(...gatherRes.logs);
-    if (typeof gatherRes.output?.gatheredDocument === 'string') {
-      gatheredContent = gatherRes.output.gatheredDocument;
+
+    try {
+      const gatherRes = await executeNewsGatherNode(node, {
+        ...ctx,
+        targetUrl: resolvedTargetUrl,
+      });
+      logs.push(...gatherRes.logs);
+      if (
+        typeof gatherRes.output?.gatheredDocument === 'string' &&
+        gatherRes.output.gatheredDocument
+      ) {
+        gatheredContent = gatherRes.output.gatheredDocument;
+      }
+      if (gatherRes.output?.articles) {
+        gatheredArticles = gatherRes.output.articles;
+      }
+    } catch (gatherErr) {
+      logs.push(
+        `Browserbase gather attempt notice: ${gatherErr instanceof Error ? gatherErr.message : String(gatherErr)}`,
+      );
     }
-    if (gatherRes.output?.articles) {
-      gatheredArticles = gatherRes.output.articles;
+
+    if (!gatheredContent) {
+      try {
+        logs.push(`Initiating live web fetch for: ${resolvedTargetUrl}`);
+        const res = await fetch(resolvedTargetUrl, {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            Accept:
+              'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          },
+        });
+        if (res.ok) {
+          const html = await res.text();
+          const cleanText = html
+            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
+            .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
+            .replace(/<[^>]+>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+          if (cleanText.length > 100) {
+            gatheredContent = cleanText.slice(0, 16000);
+            logs.push(
+              `Harvested ${gatheredContent.length} characters of live webpage text from ${resolvedTargetUrl}`,
+            );
+          }
+        }
+      } catch (fetchErr) {
+        logs.push(
+          `Live web fetch failed: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`,
+        );
+      }
     }
+  }
+
+  if (!gatheredContent) {
+    throw new Error(
+      `No news content could be gathered for categorization. Please verify that a valid URL is provided (e.g. ${resolvedTargetUrl || 'https://www.thehindu.com/'}).`,
+    );
   }
 
   logs.push(
@@ -96,16 +155,15 @@ export const executeNewsSummarizationNode: NodeHandler = async (node, ctx) => {
 
   const digestResult = await AgentService.generateCategorizedNewsDigest({
     categories: fullCategoriesList,
-    content:
-      gatheredContent ||
-      `Coverage for categories: ${fullCategoriesList.join(', ')}`,
-    targetUrl: ctx.targetUrl,
+    content: gatheredContent,
+    targetUrl: resolvedTargetUrl,
     modelName: modelToUse,
   });
 
   logs.push(
     `Synthesized ${digestResult.items.length} categorized stories (${digestResult.provider} - ${digestResult.modelUsed}):`,
   );
+
   for (const item of digestResult.items) {
     logs.push(`• [${item.category}] heading: "${item.heading}"`);
   }
@@ -119,6 +177,9 @@ export const executeNewsSummarizationNode: NodeHandler = async (node, ctx) => {
       provider: digestResult.provider,
       modelUsed: digestResult.modelUsed,
       articles: gatheredArticles,
+      gatheredDocument: gatheredContent,
+      targetUrl: resolvedTargetUrl,
+      url: resolvedTargetUrl,
     },
     logs,
   };

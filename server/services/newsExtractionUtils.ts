@@ -1,5 +1,7 @@
 import type { Page } from '@browserbasehq/stagehand';
 
+import { format } from 'date-fns';
+
 export interface NewsCategoryConfig {
   fullName: string;
   keywords: string[];
@@ -19,6 +21,22 @@ export const NEWS_CATEGORIES_CONFIG: Record<string, NewsCategoryConfig> = {
       'conflict',
     ],
     urlPatterns: ['/world', '/international'],
+  },
+  education: {
+    fullName: 'Education',
+    keywords: [
+      'education',
+      'academic',
+      'school',
+      'college',
+      'university',
+      'students',
+      'exams',
+      'results',
+      'careers',
+      'jobs',
+    ],
+    urlPatterns: ['/education', '/schools', '/colleges', '/university'],
   },
   sports: {
     fullName: 'Sports',
@@ -81,7 +99,11 @@ export const NEWS_CATEGORIES_CONFIG: Record<string, NewsCategoryConfig> = {
       'nutrition',
       'mental health',
     ],
-    urlPatterns: ['/health', '/life-style/health-fitness', '/lifestyle/health-fitness'],
+    urlPatterns: [
+      '/health',
+      '/life-style/health-fitness',
+      '/lifestyle/health-fitness',
+    ],
   },
   culture: {
     fullName: 'Culture',
@@ -125,7 +147,11 @@ export const NEWS_CATEGORIES_CONFIG: Record<string, NewsCategoryConfig> = {
       'holiday',
       'flights',
     ],
-    urlPatterns: ['/travel', '/lifestyle/spotlight/travel', '/life-style/spotlight/travel'],
+    urlPatterns: [
+      '/travel',
+      '/lifestyle/spotlight/travel',
+      '/life-style/spotlight/travel',
+    ],
   },
   earth: {
     fullName: 'Earth',
@@ -162,13 +188,13 @@ export const extractUniversalPageHeadlines = async (
     const candidates = Array.from(
       document.querySelectorAll(
         'h1, h2, h3, h4, ' +
-        'article h1, article h2, article h3, article h4, article p, article a, ' +
-        'p[class*="headline" i], p[class*="title" i], p[class*="lead" i], p[class*="teaser" i], ' +
-        '[class*="headline" i], [class*="title" i], ' +
-        '[class*="card" i] p, [class*="card" i] a, [class*="card" i] h2, [class*="card" i] h3, ' +
-        '[class*="story" i] p, [class*="story" i] a, [class*="story" i] h2, [class*="story" i] h3, ' +
-        'a[href*="articleshow" i], a[href*="/article" i], a[href*="/story" i], a[href*="/news" i], a[title], ' +
-        'main p, section p, p, a',
+          'article h1, article h2, article h3, article h4, article p, article a, ' +
+          'p[class*="headline" i], p[class*="title" i], p[class*="lead" i], p[class*="teaser" i], ' +
+          '[class*="headline" i], [class*="title" i], ' +
+          '[class*="card" i] p, [class*="card" i] a, [class*="card" i] h2, [class*="card" i] h3, ' +
+          '[class*="story" i] p, [class*="story" i] a, [class*="story" i] h2, [class*="story" i] h3, ' +
+          'a[href*="articleshow" i], a[href*="/article" i], a[href*="/story" i], a[href*="/news" i], a[title], ' +
+          'main p, section p, p, a',
       ),
     );
 
@@ -186,8 +212,14 @@ export const extractUniversalPageHeadlines = async (
 
       // Clean common news prefixes: timestamps, categories, LIVE badges
       text = text
-        .replace(/^([^/]{2,15}\/\s+)?([A-Za-z]{3}\s+\d{1,2}(,\s*\d{4})?\s*[-–—|•]?\s*)?/, '')
-        .replace(/^(live|breaking|exclusive|watch|video|photos?)\s*[:|-]\s*/i, '')
+        .replace(
+          /^([^/]{2,15}\/\s+)?([A-Za-z]{3}\s+\d{1,2}(,\s*\d{4})?\s*[-–—|•]?\s*)?/,
+          '',
+        )
+        .replace(
+          /^(live|breaking|exclusive|watch|video|photos?)\s*[:|-]\s*/i,
+          '',
+        )
         .trim();
 
       // Check character bounds
@@ -324,7 +356,9 @@ export function resolveNewsCategories(payload?: string): {
     try {
       const parsed = JSON.parse(payload);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        categories = parsed.map((s) => String(s).trim().toLowerCase()).filter(Boolean);
+        categories = parsed
+          .map((s) => String(s).trim().toLowerCase())
+          .filter(Boolean);
       }
     } catch {
       const delimiter = payload.includes(',') ? ',' : /\s+/;
@@ -405,16 +439,13 @@ export const ARTICLE_JSON_SCHEMA = {
     keyPoints: {
       type: 'array',
       items: { type: 'string' },
-      description: 'Bullet points of key facts or events mentioned in the article',
+      description:
+        'Bullet points of key facts or events mentioned in the article',
     },
   },
   required: ['headline', 'summary'],
 };
 
-/**
- * Formats structured article JSON records into a comprehensive document
- * for Gemini agent summarization and digestion.
- */
 export function formatJsonArticlesToDocument(
   articlesByCategory: Record<string, ExtractedArticleJson[]>,
 ): string {
@@ -427,7 +458,11 @@ export function formatJsonArticlesToDocument(
     doc += `\n=== CATEGORY: ${catName} ===\n`;
     for (const [idx, art] of articles.entries()) {
       doc += `\nStory #${idx + 1}: ${art.headline}\n`;
-      if (art.publishedDate) doc += `Published: ${art.publishedDate}\n`;
+      if (art.publishedDate)
+        doc += `Published: ${format(
+          new Date(art.publishedDate),
+          'dd-MM-yy hh:mm a',
+        )}\n`;
       if (art.url) doc += `Source URL: ${art.url}\n`;
       if (art.summary) doc += `Summary: ${art.summary}\n`;
       if (art.keyPoints && art.keyPoints.length > 0) {

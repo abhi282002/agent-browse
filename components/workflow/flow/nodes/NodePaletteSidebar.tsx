@@ -194,7 +194,7 @@ export function NodePaletteSidebar({
               <p className="text-[11px] text-zinc-400 mt-1 max-w-[160px]">
                 {search
                   ? "Try a different search term"
-                  : "Add node templates via Admin Studio"}
+                  : "No templates currently available"}
               </p>
               <Button
                 variant="outline"

@@ -332,11 +332,12 @@ export function useWorkflowManager() {
 
   const updateGraph = useCallback(
     (newNodes: WorkflowNodeType[], newEdges: Edge[]) => {
-      if (!activeWorkflow) return;
+      const targetId = activeWorkflow?.id;
+      if (!targetId) return;
       setLocalWorkflows((prev) => {
         const base = prev ?? (serverWorkflows as unknown as WorkflowBlueprint[]) ?? [];
         return base.map((wf) => {
-          if (wf.id !== activeWorkflow.id) return wf;
+          if (wf.id !== targetId) return wf;
           return {
             ...wf,
             nodes: newNodes,
@@ -345,7 +346,7 @@ export function useWorkflowManager() {
         });
       });
     },
-    [activeWorkflow, serverWorkflows]
+    [activeWorkflow?.id, serverWorkflows]
   );
 
   const saveWorkflow = useCallback(
@@ -511,6 +512,8 @@ export function useWorkflowManager() {
     executionResult,
     executionError,
     setExecutionError,
+    isAdmin: currentUser?.role === "admin",
+    currentUser,
     clearExecutionError: () => setExecutionError(null),
   };
 }
