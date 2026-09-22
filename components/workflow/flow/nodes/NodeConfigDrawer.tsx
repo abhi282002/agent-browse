@@ -12,6 +12,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { TerminalIcon, CheckIcon, SparklesIcon } from '@/components/ui/icons';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface NodeConfigDrawerProps {
@@ -280,40 +287,44 @@ function NodeConfigDrawerContent({
             <label className="font-semibold text-zinc-600 text-[11px] uppercase tracking-wide">
               Archetype Protocol
             </label>
-            <select
+            <Select
               value={formData.archetype}
-              onChange={(e) =>
-                updateField('archetype', e.target.value as NodeArchetype)
-              }
-              className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-xs text-zinc-900 focus:outline-none focus:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 cursor-pointer transition-colors"
+              onValueChange={(val) => {
+                if (val) updateField('archetype', val as NodeArchetype);
+              }}
             >
-              <option value="open_url">
-                Open URL (Dedicated Browser Navigate)
-              </option>
-              <option value="navigation">Navigation (URL &amp; Network)</option>
-              <option value="grounding">
-                Grounding (Vision &amp; Accessibility)
-              </option>
-              <option value="action">Action (Clicks &amp; Keystrokes)</option>
-              <option value="form">Form (Auth &amp; Roadblocks)</option>
-              <option value="extraction">
-                Extraction (Data &amp; JSON Scraper)
-              </option>
-              <option value="webhook">Webhook (Artifacts &amp; Export)</option>
-              <option value="summarization">
-                AI Summarization (Gemini &amp; Grok)
-              </option>
-              <option value="news_gather">
-                Browser News Collector (Autonomous Tabs &amp; Headlines)
-              </option>
-              <option value="news_summary">
-                News Summary (Categorized Briefing)
-              </option>
-              <option value="email">Email Notification (Resend / Nodemailer)</option>
-              <option value="authentication">
-                Authentication (Sign In via Credentials)
-              </option>
-            </select>
+              <SelectTrigger className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 text-xs text-zinc-900 focus:outline-none focus:border-ring cursor-pointer">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="open_url">
+                  Open URL (Dedicated Browser Navigate)
+                </SelectItem>
+                <SelectItem value="navigation">Navigation (URL &amp; Network)</SelectItem>
+                <SelectItem value="grounding">
+                  Grounding (Vision &amp; Accessibility)
+                </SelectItem>
+                <SelectItem value="action">Action (Clicks &amp; Keystrokes)</SelectItem>
+                <SelectItem value="form">Form (Auth &amp; Roadblocks)</SelectItem>
+                <SelectItem value="extraction">
+                  Extraction (Data &amp; JSON Scraper)
+                </SelectItem>
+                <SelectItem value="webhook">Webhook (Artifacts &amp; Export)</SelectItem>
+                <SelectItem value="summarization">
+                  AI Summarization (Gemini &amp; Grok)
+                </SelectItem>
+                <SelectItem value="news_gather">
+                  Browser News Collector (Autonomous Tabs &amp; Headlines)
+                </SelectItem>
+                <SelectItem value="news_summary">
+                  News Summary (Categorized Briefing)
+                </SelectItem>
+                <SelectItem value="email">Email Notification (Resend / Nodemailer)</SelectItem>
+                <SelectItem value="authentication">
+                  Authentication (Sign In via Credentials)
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {/* Email Provider Selector when Archetype is Email */}
@@ -327,16 +338,20 @@ function NodeConfigDrawerContent({
                   {formData.emailProvider === 'nodemailer' ? 'SMTP' : 'Resend API'}
                 </span>
               </div>
-              <select
+              <Select
                 value={formData.emailProvider || 'resend'}
-                onChange={(e) =>
-                  updateField('emailProvider', e.target.value as EmailProviderType)
-                }
-                className="h-8 w-full rounded-lg border border-blue-200 bg-white px-2.5 py-1 text-xs text-zinc-900 focus:outline-none focus:border-blue-500 cursor-pointer font-medium"
+                onValueChange={(val) => {
+                  if (val) updateField('emailProvider', val as EmailProviderType);
+                }}
               >
-                <option value="resend">Resend API (Cloud Transactional Email)</option>
-                <option value="nodemailer">Nodemailer (SMTP Server Transport)</option>
-              </select>
+                <SelectTrigger className="h-8 w-full rounded-lg border border-blue-200 bg-white px-2.5 text-xs text-zinc-900 focus:outline-none focus:border-blue-500 cursor-pointer font-medium">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="resend">Resend API (Cloud Transactional Email)</SelectItem>
+                  <SelectItem value="nodemailer">Nodemailer (SMTP Server Transport)</SelectItem>
+                </SelectContent>
+              </Select>
               <p className="text-[11px] text-blue-800 leading-relaxed">
                 {formData.emailProvider === 'nodemailer'
                   ? 'Dispatches using SMTP credentials (SMTP_HOST, SMTP_PORT, etc.). Falls back to safe simulation if unconfigured.'
@@ -360,29 +375,35 @@ function NodeConfigDrawerContent({
                     : 'Google Gemini'}
                 </span>
               </div>
-              <select
+              <Select
                 value={
                   formData.aiModel ||
                   (formData.archetype === 'news_summary'
                     ? 'Gemini 2.5 Flash'
                     : 'Gemini 2.5 Pro Vision')
                 }
-                onChange={(e) => updateField('aiModel', e.target.value)}
-                className="h-8 w-full rounded-lg border border-indigo-200 bg-white px-2.5 py-1 text-xs text-zinc-900 focus:outline-none focus:border-indigo-500 cursor-pointer font-medium"
+                onValueChange={(val) => {
+                  if (val) updateField('aiModel', val);
+                }}
               >
-                <option value="Gemini 2.5 Flash">
-                  Gemini 2.5 Flash (Google • Realtime Speed)
-                </option>
-                <option value="Gemini 2.5 Pro Vision">
-                  Gemini 2.5 Pro Vision (Google DeepMind • Multimodal)
-                </option>
-                <option value="Grok 2 (xAI)">
-                  Grok 2 (xAI • Fast Reasoning Engine)
-                </option>
-                <option value="Grok 2 Vision (xAI)">
-                  Grok 2 Vision (xAI • Deep Web Reasoning)
-                </option>
-              </select>
+                <SelectTrigger className="h-8 w-full rounded-lg border border-indigo-200 bg-white px-2.5 text-xs text-zinc-900 focus:outline-none focus:border-indigo-500 cursor-pointer font-medium">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Gemini 2.5 Flash">
+                    Gemini 2.5 Flash (Google • Realtime Speed)
+                  </SelectItem>
+                  <SelectItem value="Gemini 2.5 Pro Vision">
+                    Gemini 2.5 Pro Vision (Google DeepMind • Multimodal)
+                  </SelectItem>
+                  <SelectItem value="Grok 2 (xAI)">
+                    Grok 2 (xAI • Fast Reasoning Engine)
+                  </SelectItem>
+                  <SelectItem value="Grok 2 Vision (xAI)">
+                    Grok 2 Vision (xAI • Deep Web Reasoning)
+                  </SelectItem>
+                </SelectContent>
+              </Select>
               <p className="text-[11px] text-indigo-900/80 leading-relaxed">
                 {formData.aiModel?.toLowerCase().includes('grok')
                   ? 'Uses xAI Grok / Groq reasoning engine with structured JSON synthesis (requires GROK_API_KEY in .env).'
@@ -425,13 +446,15 @@ function NodeConfigDrawerContent({
                   <label className="font-medium text-amber-900 text-[11px]">
                     Password
                   </label>
-                  <button
+                  <Button
                     type="button"
+                    variant="link"
+                    size="xs"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="text-[10px] font-semibold text-amber-800 hover:text-amber-950 underline cursor-pointer"
+                    className="text-[10px] font-semibold text-amber-800 hover:text-amber-950 underline cursor-pointer h-auto p-0"
                   >
                     {showPassword ? 'Hide' : 'Show'}
-                  </button>
+                  </Button>
                 </div>
                 <Input
                   type={showPassword ? 'text' : 'password'}
@@ -453,13 +476,13 @@ function NodeConfigDrawerContent({
             <label className="font-semibold text-zinc-600 text-[11px] uppercase tracking-wide">
               Target URL / Scope
             </label>
-            <div className="flex items-center gap-1.5 rounded-lg border border-input bg-transparent px-2.5 py-1.5 focus-within:border-ring focus-within:ring-3 focus-within:ring-ring/50 transition-colors">
-              <TerminalIcon className="h-3.5 w-3.5 text-zinc-400 shrink-0" />
-              <input
+            <div className="relative flex items-center">
+              <TerminalIcon className="absolute left-2.5 h-3.5 w-3.5 text-zinc-400 pointer-events-none" />
+              <Input
                 type="text"
                 value={formData.url}
                 onChange={(e) => updateField('url', e.target.value)}
-                className="w-full bg-transparent font-mono text-[11px] text-zinc-900 focus:outline-none"
+                className="pl-8 h-8 font-mono text-[11px]"
                 placeholder="https://example.com"
               />
             </div>

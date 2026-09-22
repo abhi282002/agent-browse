@@ -24,6 +24,12 @@ export interface TriggerWorkflowPayload {
   aiModel?: string;
   userEmail?: string;
   contextId?: string;
+  organization?: {
+    id: string;
+    name: string;
+    aiInstructions?: string;
+    defaultAiModel?: string;
+  };
   nodes: Array<{
     id: string;
     data: {
@@ -338,6 +344,7 @@ export const executeWorkflowPipelineTask = task({
             targetUrl: currentTargetUrl,
             aiModel: payload.aiModel,
             userEmail: payload.userEmail,
+            organization: payload.organization,
             pipelineOutputs,
             previousStepOutput,
             workflowNodes: orderedNodes as any,

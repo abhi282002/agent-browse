@@ -13,10 +13,20 @@ export const executeSummarizationNode: NodeHandler = async (node, ctx) => {
     (node.data?.model as string) ||
     ctx.aiModel ||
     'Gemini 2.5 Pro Vision';
-  const instruction =
+
+  const orgDirectives = ctx.organization?.aiInstructions?.trim();
+  const orgName = ctx.organization?.name;
+  let instruction =
     node.data.actionSummary ||
     node.data.description ||
     'Summarize key insights and purpose of this webpage';
+
+  if (orgName) {
+    logs.push(`Organization Intelligence: Infused context for "${orgName}"`);
+    if (orgDirectives) {
+      instruction = `[Organization: ${orgName} | Directive: ${orgDirectives}] ${instruction}`;
+    }
+  }
 
   logs.push(`Autonomous Agent initialized: [${modelToUse}]`);
 

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { Edge } from "@xyflow/react";
 import { trpc } from "@/lib/trpc/client";
+import { useOrgStore } from "@/stores/useOrgStore";
 import type {
   WorkflowBlueprint,
   WorkflowNodeType,
@@ -19,15 +20,43 @@ export function useWorkflow() {
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
 
+  // Zustand Organization State
+  const activeOrgId = useOrgStore((state) => state.activeOrgId);
+  const activeOrganization = useOrgStore((state) => state.activeOrganization);
+  const setActiveOrganization = useOrgStore((state) => state.setActiveOrganization);
+  const setActiveOrgId = useOrgStore((state) => state.setActiveOrgId);
+
   // tRPC Queries & Mutations
   const utils = trpc.useContext();
   const { data: currentUser } = trpc.auth.me.useQuery(undefined, {
     staleTime: 60 * 1000,
   });
-  const { data: serverWorkflows } = trpc.workflow.getAll.useQuery(undefined, {
+
+  const { data: serverActiveOrg } = trpc.organization.getActive.useQuery(undefined, {
+    enabled: Boolean(currentUser),
     staleTime: 10 * 1000,
-    refetchOnWindowFocus: false,
   });
+
+  // Sync server active organization to Zustand store if store has not been initialized
+  useEffect(() => {
+    if (serverActiveOrg && !activeOrgId) {
+      setActiveOrganization(serverActiveOrg);
+    }
+  }, [serverActiveOrg, activeOrgId, setActiveOrganization]);
+
+  const { data: serverWorkflows } = trpc.workflow.getAll.useQuery(
+    activeOrgId ? { organizationId: activeOrgId } : undefined,
+    {
+      staleTime: 10 * 1000,
+      refetchOnWindowFocus: false,
+    }
+  );
+
+  // When active organization changes in Zustand store, reset local workflow cache
+  useEffect(() => {
+    setLocalWorkflows(null);
+    setActiveWorkflowId(null);
+  }, [activeOrgId]);
 
   const createMutation = trpc.workflow.create.useMutation({
     onSuccess: (savedWorkflow) => {
@@ -93,11 +122,12 @@ export function useWorkflow() {
         nodes: newWorkflow.nodes,
         edges: newWorkflow.edges,
         status: newWorkflow.status,
+        organizationId: activeOrgId || activeOrganization?.id,
       });
 
       return newWorkflow;
     },
-    [createMutation, serverWorkflows]
+    [createMutation, serverWorkflows, activeOrgId, activeOrganization]
   );
 
   const deleteWorkflow = useCallback(
@@ -420,6 +450,8 @@ export function useWorkflow() {
     isSyncing: createMutation.isPending || updateMutation.isPending || deleteMutation.isPending,
     isAdmin: currentUser?.role === "admin",
     currentUser,
+    activeOrgId,
+    activeOrganization,
     localWorkflows,
     setLocalWorkflows,
     serverWorkflows,

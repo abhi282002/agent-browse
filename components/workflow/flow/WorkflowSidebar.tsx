@@ -10,6 +10,13 @@ import {
   TerminalIcon,
   SparklesIcon,
 } from "@/components/ui/icons";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface WorkflowSidebarProps {
   workflow: WorkflowBlueprint;
@@ -144,14 +151,16 @@ export function WorkflowSidebar({
                 {workflow.name}
               </h3>
               {onOpenEditWorkflow && (
-                <button
+                <Button
                   type="button"
+                  variant="ghost"
+                  size="icon-xs"
                   onClick={onOpenEditWorkflow}
-                  className="text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer text-xs p-0.5 rounded hover:bg-zinc-100 shrink-0"
+                  className="text-zinc-400 hover:text-zinc-900 transition-colors cursor-pointer text-xs p-0.5 rounded hover:bg-zinc-100 shrink-0 h-auto w-auto"
                   title="Edit Workflow Settings"
                 >
                   ✏️
-                </button>
+                </Button>
               )}
             </div>
             <Badge variant="secondary" className="shrink-0 text-[10px]">
@@ -169,17 +178,23 @@ export function WorkflowSidebar({
             <label className="text-[10px] uppercase font-semibold text-zinc-400 block mb-1">
               Switch Workflow
             </label>
-            <select
+            <Select
               value={workflow.id}
-              onChange={(e) => onSelectWorkflow(e.target.value)}
-              className="w-full rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:border-zinc-300 focus:outline-none focus:ring-1 focus:ring-zinc-900 cursor-pointer"
+              onValueChange={(val) => {
+                if (val) onSelectWorkflow(val);
+              }}
             >
-              {allWorkflows.map((wf) => (
-                <option key={wf.id} value={wf.id}>
-                  {wf.name} ({wf.nodes.length} steps)
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full h-8 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 text-xs font-medium text-zinc-700 hover:border-zinc-300 focus:ring-1 focus:ring-zinc-900 cursor-pointer">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {allWorkflows.map((wf) => (
+                  <SelectItem key={wf.id} value={wf.id}>
+                    {wf.name} ({wf.nodes.length} steps)
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
       </div>

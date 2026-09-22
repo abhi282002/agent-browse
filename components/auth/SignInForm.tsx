@@ -3,6 +3,10 @@
 import React, { useState } from "react";
 import { EyeIcon, EyeOffIcon, ArrowRightIcon, LockIcon } from "@/components/ui/icons";
 import { trpc } from "@/lib/trpc/client";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface SignInFormProps {
   onSuccess?: (email: string) => void;
@@ -60,61 +64,65 @@ export function SignInForm({ onSuccess, onForgotPassword }: SignInFormProps) {
       )}
 
       <div className="flex flex-col gap-1.5">
-        <label className="text-xs font-semibold text-zinc-700">
+        <Label htmlFor="signin-email" className="text-xs font-semibold text-zinc-700">
           Work Email
-        </label>
-        <input
+        </Label>
+        <Input
+          id="signin-email"
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder="name@company.com"
           required
           autoComplete="email"
-          className="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50/50 px-3 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-zinc-900 transition-colors"
+          className="h-10 bg-zinc-50/50 text-sm focus:bg-white"
         />
       </div>
 
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-semibold text-zinc-700">
+          <Label htmlFor="signin-password" className="text-xs font-semibold text-zinc-700">
             Password
-          </label>
-          <button
+          </Label>
+          <Button
             type="button"
+            variant="link"
+            size="xs"
             onClick={onForgotPassword}
-            className="text-xs font-medium text-zinc-500 hover:text-zinc-900 transition-colors"
+            className="text-xs font-medium text-zinc-500 hover:text-zinc-900 p-0 h-auto"
           >
             Forgot password?
-          </button>
+          </Button>
         </div>
         <div className="relative">
-          <input
+          <Input
+            id="signin-password"
             type={showPassword ? "text" : "password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••••••"
             required
             autoComplete="current-password"
-            className="h-10 w-full rounded-lg border border-zinc-200 bg-zinc-50/50 pl-3 pr-10 text-sm text-zinc-900 placeholder:text-zinc-400 focus:border-zinc-900 focus:bg-white focus:outline-none focus:ring-1 focus:ring-zinc-900 transition-colors"
+            className="h-10 bg-zinc-50/50 pl-3 pr-10 text-sm focus:bg-white"
           />
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
             onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 transition-colors"
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700"
             aria-label={showPassword ? "Hide password" : "Show password"}
           >
             {showPassword ? <EyeOffIcon className="h-4 w-4" /> : <EyeIcon className="h-4 w-4" />}
-          </button>
+          </Button>
         </div>
       </div>
 
       <div className="flex items-center justify-between pt-1">
         <label className="flex items-center gap-2 cursor-pointer select-none text-xs text-zinc-600">
-          <input
-            type="checkbox"
+          <Checkbox
             checked={rememberMe}
-            onChange={(e) => setRememberMe(e.target.checked)}
-            className="h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900 accent-zinc-900"
+            onCheckedChange={(checked) => setRememberMe(!!checked)}
           />
           <span>Remember this session</span>
         </label>
@@ -124,10 +132,10 @@ export function SignInForm({ onSuccess, onForgotPassword }: SignInFormProps) {
         </span>
       </div>
 
-      <button
+      <Button
         type="submit"
         disabled={signInMutation.isPending}
-        className="mt-2 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 font-medium text-sm text-white shadow-sm hover:bg-zinc-800 active:scale-[0.99] transition-all disabled:opacity-60 cursor-pointer"
+        className="mt-2 h-10 w-full gap-2 rounded-lg bg-zinc-900 text-sm font-medium text-white shadow-sm hover:bg-zinc-800"
       >
         {signInMutation.isPending ? (
           <div className="flex items-center gap-2">
@@ -140,7 +148,7 @@ export function SignInForm({ onSuccess, onForgotPassword }: SignInFormProps) {
             <ArrowRightIcon className="h-4 w-4" />
           </>
         )}
-      </button>
+      </Button>
     </form>
   );
 }

@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { Clock, Search, Film, CheckCircle2, AlertCircle, PlayCircle } from 'lucide-react';
 import { trpc } from '@/lib/trpc/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 interface RecentSessionsPickerProps {
   selectedSessionId: string;
@@ -36,34 +38,37 @@ export function RecentSessionsPicker({
           <Clock className="h-3.5 w-3.5 text-emerald-400" />
           <span>Recent Sessions</span>
         </span>
-        <button
+        <Button
           type="button"
+          variant="link"
+          size="xs"
           onClick={() => recentSessionsQuery.refetch()}
-          className="text-[11px] text-zinc-500 hover:text-zinc-300 font-mono transition-colors cursor-pointer"
+          className="text-[11px] text-zinc-500 hover:text-zinc-300 font-mono transition-colors cursor-pointer p-0 h-auto"
         >
           Refresh list
-        </button>
+        </Button>
       </div>
 
       {/* Manual Input form */}
       <form onSubmit={handleManualSubmit} className="flex items-center gap-2">
         <div className="relative flex-1">
           <Search className="h-3.5 w-3.5 text-zinc-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
-          <input
+          <Input
             type="text"
             value={manualInput}
             onChange={(e) => setManualInput(e.target.value)}
             placeholder="Paste Browserbase session ID..."
-            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-8 pr-3 py-1.5 text-xs text-zinc-200 placeholder:text-zinc-600 focus:outline-hidden focus:border-emerald-500 font-mono"
+            className="w-full bg-zinc-950 border border-zinc-800 rounded-lg pl-8 pr-3 py-1.5 h-8 text-xs text-zinc-200 placeholder:text-zinc-600 focus:border-emerald-500 font-mono"
           />
         </div>
-        <button
+        <Button
           type="submit"
+          size="sm"
           disabled={!manualInput.trim()}
-          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold text-white transition-colors cursor-pointer"
+          className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold text-white transition-colors cursor-pointer h-8"
         >
           Load
-        </button>
+        </Button>
       </form>
 
       {/* Recent sessions list */}
@@ -82,13 +87,14 @@ export function RecentSessionsPicker({
             const isCompleted = s.status === 'COMPLETED';
 
             return (
-              <button
+              <Button
                 key={s.id}
                 type="button"
+                variant="ghost"
                 onClick={() => onSelectSession(s.id)}
-                className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-left transition-colors cursor-pointer border ${
+                className={`flex h-auto w-full items-center justify-between gap-2 px-3 py-2 rounded-lg text-left transition-colors cursor-pointer border ${
                   isSelected
-                    ? 'bg-emerald-950/60 border-emerald-600/60 text-emerald-300 shadow-xs'
+                    ? 'bg-emerald-950/60 border-emerald-600/60 text-emerald-300 shadow-xs hover:bg-emerald-950'
                     : 'bg-zinc-950/60 hover:bg-zinc-800 border-zinc-800/80 text-zinc-300'
                 }`}
               >
@@ -117,7 +123,7 @@ export function RecentSessionsPicker({
                     <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
                   )}
                 </div>
-              </button>
+              </Button>
             );
           })
         )}

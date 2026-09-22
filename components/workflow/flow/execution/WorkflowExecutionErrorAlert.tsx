@@ -3,6 +3,7 @@
 import React from 'react';
 import { AlertTriangle, X } from 'lucide-react';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 
 export interface WorkflowExecutionErrorAlertProps {
   error: string | null;
@@ -30,14 +31,16 @@ export function WorkflowExecutionErrorAlert({
             <AlertDescription className="text-xs text-rose-700">{error}</AlertDescription>
           </div>
         </div>
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-xs"
           onClick={onDismiss}
-          className="p-1 hover:bg-rose-50 rounded text-rose-500 hover:text-rose-700 cursor-pointer transition-colors"
+          className="p-1 hover:bg-rose-50 rounded text-rose-500 hover:text-rose-700 cursor-pointer transition-colors h-auto w-auto"
           title="Dismiss notification"
         >
           <X className="h-3.5 w-3.5" />
-        </button>
+        </Button>
       </Alert>
     </div>
   );

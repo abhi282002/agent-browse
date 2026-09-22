@@ -3,6 +3,7 @@
 import { trpc } from '@/lib/trpc/client';
 import type { NodeTemplate } from '../types';
 import { SparklesIcon } from '@/components/ui/icons';
+import { Button } from '@/components/ui/button';
 
 interface NodePaletteProps {
   onAddNode: (template: NodeTemplate) => void;
@@ -22,14 +23,15 @@ export function NodePalette({ onAddNode, onOpenCatalog }: NodePaletteProps) {
   return (
     <div className="flex items-center gap-2 flex-wrap">
       {/* Catalog Button */}
-      <button
+      <Button
         type="button"
+        size="sm"
         onClick={onOpenCatalog}
-        className="flex items-center gap-1.5 rounded-xl bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-zinc-800 transition-all cursor-pointer"
+        className="flex items-center gap-1.5 rounded-xl bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white shadow-2xs hover:bg-zinc-800 transition-all cursor-pointer h-auto"
       >
         <SparklesIcon className="h-3.5 w-3.5 text-emerald-400" />
         <span>+ Add Step Node</span>
-      </button>
+      </Button>
 
       {/* Quick Add Chips */}
       <div className="flex items-center gap-1 rounded-xl border border-zinc-200/80 bg-white p-1 shadow-2xs">
@@ -42,9 +44,11 @@ export function NodePalette({ onAddNode, onOpenCatalog }: NodePaletteProps) {
           </span>
         ) : (
           templates.slice(0, 5).map((tpl) => (
-            <button
+            <Button
               key={tpl.id || tpl.badge}
               type="button"
+              variant="ghost"
+              size="xs"
               draggable
               onDragStart={(e) => {
                 e.dataTransfer.setData(
@@ -54,7 +58,7 @@ export function NodePalette({ onAddNode, onOpenCatalog }: NodePaletteProps) {
                 e.dataTransfer.effectAllowed = 'copy';
               }}
               onClick={() => onAddNode(tpl)}
-              className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors cursor-grab active:cursor-grabbing"
+              className="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 transition-colors cursor-grab active:cursor-grabbing h-auto"
               title={`${tpl.title} (${tpl.isPremium ? 'PRO' : 'Free'}) — Click to add or drag onto canvas`}
             >
               <span
@@ -68,7 +72,7 @@ export function NodePalette({ onAddNode, onOpenCatalog }: NodePaletteProps) {
                   PRO
                 </span>
               )}
-            </button>
+            </Button>
           ))
         )}
       </div>

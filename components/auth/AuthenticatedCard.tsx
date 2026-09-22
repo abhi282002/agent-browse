@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "motion/react";
 import { trpc } from "@/lib/trpc/client";
 import { BotIcon, ChromeIcon, ShieldCheckIcon, PlayIcon, SparklesIcon } from "@/components/ui/icons";
+import { Button } from "@/components/ui/button";
 
 interface AuthenticatedCardProps {
   user: {
@@ -12,6 +13,8 @@ interface AuthenticatedCardProps {
     name: string;
     email: string;
     workspaceName: string;
+    activeOrganizationName?: string | null;
+    activeOrganizationRole?: string | null;
     role?: string;
     plan?: string;
   };
@@ -105,24 +108,31 @@ export function AuthenticatedCard({ user, onSignOut }: AuthenticatedCardProps) {
             </div>
           </div>
 
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             disabled={signOutMutation.isPending}
             onClick={() => signOutMutation.mutate()}
-            className="rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 hover:border-zinc-300 transition-colors cursor-pointer disabled:opacity-50"
+            className="rounded-lg border-zinc-200 bg-zinc-50 text-xs font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
           >
             {signOutMutation.isPending ? "Signing out..." : "Sign Out"}
-          </button>
+          </Button>
         </div>
 
         {/* Active Workspace Details */}
         <div className="my-5 rounded-xl border border-zinc-200/70 bg-zinc-50/70 p-3.5 space-y-2.5">
           <div className="flex items-center justify-between text-xs">
-            <span className="font-semibold text-zinc-700">Workspace</span>
+            <span className="font-semibold text-zinc-700">Organization</span>
             <div className="flex items-center gap-1.5">
               <span className="rounded bg-white px-2 py-0.5 text-[11px] font-medium text-zinc-800 border border-zinc-200/70">
-                {user.workspaceName}
+                {user.activeOrganizationName || user.workspaceName}
               </span>
+              {user.activeOrganizationRole && (
+                <span className="rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600 border border-zinc-200">
+                  {user.activeOrganizationRole}
+                </span>
+              )}
               <span
                 className={`rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
                   user.plan === "pro"
@@ -189,11 +199,11 @@ export function AuthenticatedCard({ user, onSignOut }: AuthenticatedCardProps) {
 
         {/* Action Buttons */}
         <div className="space-y-2.5">
-          <button
+          <Button
             type="button"
             disabled={launchSandboxMutation.isPending}
             onClick={handleLaunchSandbox}
-            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 font-medium text-sm text-white shadow-sm hover:bg-zinc-800 active:scale-[0.99] transition-all disabled:opacity-60 cursor-pointer"
+            className="h-11 w-full gap-2 rounded-xl bg-zinc-900 text-sm font-medium text-white shadow-sm hover:bg-zinc-800 active:scale-[0.99]"
           >
             {launchSandboxMutation.isPending ? (
               <>
@@ -206,7 +216,7 @@ export function AuthenticatedCard({ user, onSignOut }: AuthenticatedCardProps) {
                 <span>Launch Cloud Agent Sandbox</span>
               </>
             )}
-          </button>
+          </Button>
 
           <Link
             href="/workflow"

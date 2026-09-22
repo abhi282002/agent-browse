@@ -3,6 +3,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import Hls from "hls.js";
 import { Loader2, AlertCircle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface BrowserReplayProps {
   sessionId: string;
@@ -118,18 +119,19 @@ export function BrowserReplay({
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/90 text-zinc-400 p-6 text-center z-10 gap-3">
           <AlertCircle className="h-8 w-8 text-rose-400" />
           <p className="text-xs text-zinc-300 max-w-sm">{error}</p>
-          <button
+          <Button
             type="button"
+            size="sm"
             onClick={() => {
               setError(null);
               setIsLoading(true);
               setReloadKey((prev) => prev + 1);
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-medium text-zinc-200 transition-colors cursor-pointer border border-zinc-700"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-medium text-zinc-200 transition-colors cursor-pointer border border-zinc-700 h-auto"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             <span>Retry</span>
-          </button>
+          </Button>
         </div>
       )}
 

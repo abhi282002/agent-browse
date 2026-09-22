@@ -13,6 +13,7 @@ import {
   Radio,
 } from 'lucide-react';
 import { ChromeIcon } from '@/components/ui/icons';
+import { Button } from '@/components/ui/button';
 
 export type SessionRelayTabType = 'relay' | 'sandbox' | 'telemetry';
 
@@ -78,42 +79,48 @@ export function SessionRelayHeader({
 
       {/* Center: View Mode Tabs */}
       <div className="flex items-center gap-1 bg-zinc-950 p-0.5 rounded-md border border-zinc-800 text-[11px]">
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="xs"
           onClick={() => onTabChange('relay')}
-          className={`flex items-center gap-1 px-2.5 py-1 rounded font-medium transition-colors cursor-pointer ${
+          className={`flex items-center gap-1 px-2.5 py-1 rounded font-medium transition-colors cursor-pointer h-auto ${
             activeTab === 'relay'
-              ? 'bg-zinc-800 text-white font-semibold'
+              ? 'bg-zinc-800 text-white font-semibold hover:bg-zinc-800'
               : 'text-zinc-400 hover:text-zinc-200'
           }`}
         >
           <Video className="h-3 w-3" />
           <span>Relay Video</span>
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="ghost"
+          size="xs"
           onClick={() => onTabChange('sandbox')}
-          className={`flex items-center gap-1 px-2.5 py-1 rounded font-medium transition-colors cursor-pointer ${
+          className={`flex items-center gap-1 px-2.5 py-1 rounded font-medium transition-colors cursor-pointer h-auto ${
             activeTab === 'sandbox'
-              ? 'bg-zinc-800 text-white font-semibold'
+              ? 'bg-zinc-800 text-white font-semibold hover:bg-zinc-800'
               : 'text-zinc-400 hover:text-zinc-200'
           }`}
         >
           <Monitor className="h-3 w-3" />
           <span>Sandbox Preview</span>
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="ghost"
+          size="xs"
           onClick={() => onTabChange('telemetry')}
-          className={`flex items-center gap-1 px-2.5 py-1 rounded font-medium transition-colors cursor-pointer ${
+          className={`flex items-center gap-1 px-2.5 py-1 rounded font-medium transition-colors cursor-pointer h-auto ${
             activeTab === 'telemetry'
-              ? 'bg-zinc-800 text-white font-semibold'
+              ? 'bg-zinc-800 text-white font-semibold hover:bg-zinc-800'
               : 'text-zinc-400 hover:text-zinc-200'
           }`}
         >
           <Database className="h-3 w-3" />
           <span>Step Telemetry</span>
-        </button>
+        </Button>
       </div>
 
       {/* Right Controls */}
@@ -143,19 +150,23 @@ export function SessionRelayHeader({
           </a>
         )}
 
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-xs"
           onClick={onRefresh}
-          className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors cursor-pointer"
+          className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors cursor-pointer h-auto w-auto"
           title="Reload session relay stream"
         >
           <RefreshCw className="h-3.5 w-3.5" />
-        </button>
+        </Button>
 
-        <button
+        <Button
           type="button"
+          variant="ghost"
+          size="icon-xs"
           onClick={onToggleFullscreen}
-          className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors cursor-pointer"
+          className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors cursor-pointer h-auto w-auto"
           title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Relay'}
         >
           {isFullscreen ? (
@@ -163,7 +174,7 @@ export function SessionRelayHeader({
           ) : (
             <Maximize2 className="h-3.5 w-3.5" />
           )}
-        </button>
+        </Button>
       </div>
     </div>
   );

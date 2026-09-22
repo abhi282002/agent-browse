@@ -19,12 +19,20 @@ export interface WorkflowExecutionNode {
   };
 }
 
+export interface OrganizationExecutionContext {
+  id: string;
+  name: string;
+  aiInstructions?: string;
+  defaultAiModel?: string;
+}
+
 export interface NodeExecutionContext {
   stagehand: Stagehand;
   page: Page;
   targetUrl?: string;
   aiModel?: string;
   userEmail?: string;
+  organization?: OrganizationExecutionContext;
   pipelineOutputs?: Record<string, unknown>;
   previousStepOutput?: Record<string, unknown>;
   workflowNodes?: WorkflowExecutionNode[];

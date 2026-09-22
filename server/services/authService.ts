@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { generateSessionToken, SESSION_MAX_AGE } from "@/lib/auth/session";
+import { OrganizationService } from "./organizationService";
 
 export interface SignUpInput {
   name: string;
@@ -19,6 +20,9 @@ export interface UserSessionPayload {
   name: string;
   email: string;
   workspaceName: string;
+  activeOrgId?: string | null;
+  activeOrganizationName?: string | null;
+  activeOrganizationRole?: string | null;
   role: string;
   plan: string;
   createdAt: Date;
@@ -48,6 +52,15 @@ export class AuthService {
       },
     });
 
+    // Auto-provision initial organization
+    const org = await OrganizationService.createOrganization(
+      {
+        name: workspace,
+        description: "Primary workspace for autonomous workflows and browser agents.",
+      },
+      user.id
+    );
+
     const sessionToken = generateSessionToken();
     const expiresAt = new Date(Date.now() + SESSION_MAX_AGE * 1000);
 
@@ -66,6 +79,9 @@ export class AuthService {
         name: user.name,
         email: user.email,
         workspaceName: user.workspaceName ?? "Default Workspace",
+        activeOrgId: org.id,
+        activeOrganizationName: org.name,
+        activeOrganizationRole: "owner",
         role: user.role,
         plan: user.plan,
         createdAt: user.createdAt,
@@ -100,6 +116,14 @@ export class AuthService {
       },
     });
 
+    // Resolve or provision active organization
+    let activeOrg: Awaited<ReturnType<typeof OrganizationService.getActiveOrganization>> | null = null;
+    try {
+      activeOrg = await OrganizationService.getActiveOrganization(user.id);
+    } catch {
+      activeOrg = null;
+    }
+
     return {
       sessionToken,
       user: {
@@ -107,6 +131,9 @@ export class AuthService {
         name: user.name,
         email: user.email,
         workspaceName: user.workspaceName ?? "Default Workspace",
+        activeOrgId: activeOrg?.id ?? user.activeOrgId ?? null,
+        activeOrganizationName: activeOrg?.name ?? user.workspaceName ?? "Default Workspace",
+        activeOrganizationRole: activeOrg?.userRole ?? "member",
         role: user.role,
         plan: user.plan,
         createdAt: user.createdAt,
@@ -141,11 +168,22 @@ export class AuthService {
       return null;
     }
 
+    // Resolve or provision active organization
+    let activeOrg: Awaited<ReturnType<typeof OrganizationService.getActiveOrganization>> | null = null;
+    try {
+      activeOrg = await OrganizationService.getActiveOrganization(session.user.id);
+    } catch {
+      activeOrg = null;
+    }
+
     return {
       id: session.user.id,
       name: session.user.name,
       email: session.user.email,
       workspaceName: session.user.workspaceName ?? "Default Workspace",
+      activeOrgId: activeOrg?.id ?? session.user.activeOrgId ?? null,
+      activeOrganizationName: activeOrg?.name ?? session.user.workspaceName ?? "Default Workspace",
+      activeOrganizationRole: activeOrg?.userRole ?? "member",
       role: session.user.role,
       plan: session.user.plan,
       createdAt: session.user.createdAt,

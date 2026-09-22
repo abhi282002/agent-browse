@@ -14,6 +14,7 @@ export interface CreateWorkflowInput {
   nodes: unknown[];
   edges: unknown[];
   status?: string;
+  organizationId?: string;
 }
 
 export interface UpdateWorkflowInput {
@@ -26,15 +27,20 @@ export interface UpdateWorkflowInput {
   sandboxEnv?: string;
   nodes?: unknown[];
   edges?: unknown[];
+  organizationId?: string;
 }
 
 export class WorkflowService {
   /**
-   * List workflows. Automatically seeds default blueprints if the database is empty.
+   * List workflows scoped by organization or user. Automatically seeds default blueprints if the database is empty.
    */
-  static async list(userId?: string) {
-    // If authenticated, get user's workflows or public workflows
-    const whereClause: Prisma.WorkflowWhereInput = userId
+  static async list(userId?: string, organizationId?: string) {
+    // If organization is specified, get workflows in this organization or global templates
+    const whereClause: Prisma.WorkflowWhereInput = organizationId
+      ? {
+          OR: [{ organizationId }, { organizationId: null, userId: null }],
+        }
+      : userId
       ? {
           OR: [{ userId }, { userId: null }],
         }
@@ -42,47 +48,60 @@ export class WorkflowService {
 
     let workflows = await prisma.workflow.findMany({
       where: whereClause,
+      include: {
+        organization: {
+          select: { id: true, name: true },
+        },
+      },
       orderBy: { createdAt: "desc" },
     });
 
     // Auto-seed default workflows if none exist yet
     if (workflows.length === 0) {
-      for (const def of DEFAULT_WORKFLOW_SEEDS) {
+      for (const defaultSeed of DEFAULT_WORKFLOW_SEEDS) {
         await prisma.workflow.create({
           data: {
-            id: def.id,
-            name: def.name,
-            description: def.description,
-            category: def.category,
-            targetUrl: def.targetUrl || "",
-            status: def.status,
+            id: defaultSeed.id,
+            name: defaultSeed.name,
+            description: defaultSeed.description,
+            category: defaultSeed.category,
+            targetUrl: defaultSeed.targetUrl || "",
+            status: defaultSeed.status,
             aiModel: "Gemini 2.5 Pro Vision",
             sandboxEnv: "Chromium 128 (CDP Protocol)",
-            nodes: def.nodes as unknown as Prisma.InputJsonValue,
-            edges: def.edges as unknown as Prisma.InputJsonValue,
+            nodes: defaultSeed.nodes as unknown as Prisma.InputJsonValue,
+            edges: defaultSeed.edges as unknown as Prisma.InputJsonValue,
             userId: userId || null,
+            organizationId: organizationId || null,
           },
         });
       }
 
       workflows = await prisma.workflow.findMany({
         where: whereClause,
+        include: {
+          organization: {
+            select: { id: true, name: true },
+          },
+        },
         orderBy: { createdAt: "desc" },
       });
     }
 
-    return workflows.map((wf) => ({
-      id: wf.id,
-      name: wf.name,
-      description: wf.description || "",
-      category: wf.category,
-      targetUrl: wf.targetUrl,
-      status: (wf.status as "idle" | "running" | "completed" | "paused") || "idle",
-      aiModel: wf.aiModel || "Gemini 2.5 Pro Vision",
-      sandboxEnv: wf.sandboxEnv || "Chromium 128 (CDP Protocol)",
-      createdAt: wf.createdAt.toISOString(),
-      nodes: wf.nodes as unknown as WorkflowNodeType[],
-      edges: wf.edges as unknown as Edge[],
+    return workflows.map((workflow) => ({
+      id: workflow.id,
+      name: workflow.name,
+      description: workflow.description || "",
+      category: workflow.category,
+      targetUrl: workflow.targetUrl,
+      status: (workflow.status as "idle" | "running" | "completed" | "paused") || "idle",
+      aiModel: workflow.aiModel || "Gemini 2.5 Pro Vision",
+      sandboxEnv: workflow.sandboxEnv || "Chromium 128 (CDP Protocol)",
+      createdAt: workflow.createdAt.toISOString(),
+      nodes: workflow.nodes as unknown as WorkflowNodeType[],
+      edges: workflow.edges as unknown as Edge[],
+      organizationId: workflow.organizationId || undefined,
+      organizationName: workflow.organization?.name || undefined,
     }));
   }
 
@@ -90,34 +109,47 @@ export class WorkflowService {
    * Retrieve a workflow by ID
    */
   static async getById(id: string) {
-    const wf = await prisma.workflow.findUnique({
+    const workflow = await prisma.workflow.findUnique({
       where: { id },
+      include: {
+        organization: {
+          select: { id: true, name: true },
+        },
+      },
     });
 
-    if (!wf) {
+    if (!workflow) {
       throw new Error("Workflow not found");
     }
 
     return {
-      id: wf.id,
-      name: wf.name,
-      description: wf.description || "",
-      category: wf.category,
-      targetUrl: wf.targetUrl,
-      status: (wf.status as "idle" | "running" | "completed" | "paused") || "idle",
-      aiModel: wf.aiModel || "Gemini 2.5 Pro Vision",
-      sandboxEnv: wf.sandboxEnv || "Chromium 128 (CDP Protocol)",
-      createdAt: wf.createdAt.toISOString(),
-      nodes: wf.nodes as unknown as WorkflowNodeType[],
-      edges: wf.edges as unknown as Edge[],
+      id: workflow.id,
+      name: workflow.name,
+      description: workflow.description || "",
+      category: workflow.category,
+      targetUrl: workflow.targetUrl,
+      status: (workflow.status as "idle" | "running" | "completed" | "paused") || "idle",
+      aiModel: workflow.aiModel || "Gemini 2.5 Pro Vision",
+      sandboxEnv: workflow.sandboxEnv || "Chromium 128 (CDP Protocol)",
+      createdAt: workflow.createdAt.toISOString(),
+      nodes: workflow.nodes as unknown as WorkflowNodeType[],
+      edges: workflow.edges as unknown as Edge[],
+      organizationId: workflow.organizationId || undefined,
+      organizationName: workflow.organization?.name || undefined,
     };
   }
 
   /**
-   * Create a new workflow in database
+   * Create a new workflow in database under an organization
    */
-  static async create(input: CreateWorkflowInput, userId?: string) {
-    const wf = await prisma.workflow.create({
+  static async create(
+    input: CreateWorkflowInput,
+    userId?: string,
+    organizationId?: string
+  ) {
+    const orgId = organizationId || input.organizationId || null;
+
+    const createdWorkflow = await prisma.workflow.create({
       data: {
         name: input.name.trim(),
         description: input.description?.trim() || "",
@@ -129,21 +161,29 @@ export class WorkflowService {
         nodes: input.nodes as unknown as Prisma.InputJsonValue,
         edges: input.edges as unknown as Prisma.InputJsonValue,
         userId: userId || null,
+        organizationId: orgId,
+      },
+      include: {
+        organization: {
+          select: { id: true, name: true },
+        },
       },
     });
 
     return {
-      id: wf.id,
-      name: wf.name,
-      description: wf.description || "",
-      category: wf.category,
-      targetUrl: wf.targetUrl,
-      status: (wf.status as "idle" | "running" | "completed" | "paused") || "idle",
-      aiModel: wf.aiModel || "Gemini 2.5 Pro Vision",
-      sandboxEnv: wf.sandboxEnv || "Chromium 128 (CDP Protocol)",
-      createdAt: wf.createdAt.toISOString(),
-      nodes: wf.nodes as unknown as WorkflowNodeType[],
-      edges: wf.edges as unknown as Edge[],
+      id: createdWorkflow.id,
+      name: createdWorkflow.name,
+      description: createdWorkflow.description || "",
+      category: createdWorkflow.category,
+      targetUrl: createdWorkflow.targetUrl,
+      status: (createdWorkflow.status as "idle" | "running" | "completed" | "paused") || "idle",
+      aiModel: createdWorkflow.aiModel || "Gemini 2.5 Pro Vision",
+      sandboxEnv: createdWorkflow.sandboxEnv || "Chromium 128 (CDP Protocol)",
+      createdAt: createdWorkflow.createdAt.toISOString(),
+      nodes: createdWorkflow.nodes as unknown as WorkflowNodeType[],
+      edges: createdWorkflow.edges as unknown as Edge[],
+      organizationId: createdWorkflow.organizationId || undefined,
+      organizationName: createdWorkflow.organization?.name || undefined,
     };
   }
 
@@ -153,24 +193,35 @@ export class WorkflowService {
   static async update(id: string, input: UpdateWorkflowInput, userId?: string) {
     let existing = await prisma.workflow.findUnique({
       where: { id },
+      include: {
+        organization: {
+          select: { id: true, name: true },
+        },
+      },
     });
 
     if (!existing) {
-      const defaultWf = DEFAULT_WORKFLOW_SEEDS.find((w) => w.id === id);
-      if (defaultWf) {
+      const defaultWorkflow = DEFAULT_WORKFLOW_SEEDS.find((seed) => seed.id === id);
+      if (defaultWorkflow) {
         existing = await prisma.workflow.create({
           data: {
-            id: defaultWf.id,
-            name: input.name?.trim() || defaultWf.name,
-            description: input.description?.trim() || defaultWf.description,
-            category: input.category?.trim() || defaultWf.category,
-            targetUrl: input.targetUrl?.trim() || defaultWf.targetUrl || "",
-            status: input.status || defaultWf.status,
+            id: defaultWorkflow.id,
+            name: input.name?.trim() || defaultWorkflow.name,
+            description: input.description?.trim() || defaultWorkflow.description,
+            category: input.category?.trim() || defaultWorkflow.category,
+            targetUrl: input.targetUrl?.trim() || defaultWorkflow.targetUrl || "",
+            status: input.status || defaultWorkflow.status,
             aiModel: input.aiModel || "Gemini 2.5 Pro Vision",
             sandboxEnv: input.sandboxEnv || "Chromium 128 (CDP Protocol)",
-            nodes: (input.nodes || defaultWf.nodes) as unknown as Prisma.InputJsonValue,
-            edges: (input.edges || defaultWf.edges) as unknown as Prisma.InputJsonValue,
+            nodes: (input.nodes || defaultWorkflow.nodes) as unknown as Prisma.InputJsonValue,
+            edges: (input.edges || defaultWorkflow.edges) as unknown as Prisma.InputJsonValue,
             userId: userId || null,
+            organizationId: input.organizationId || null,
+          },
+          include: {
+            organization: {
+              select: { id: true, name: true },
+            },
           },
         });
       } else {
@@ -178,7 +229,7 @@ export class WorkflowService {
       }
     }
 
-    if (userId && existing.userId && existing.userId !== userId) {
+    if (userId && existing.userId && existing.userId !== userId && !existing.organizationId) {
       throw new Error("Unauthorized to edit this workflow");
     }
 
@@ -192,10 +243,16 @@ export class WorkflowService {
     if (input.sandboxEnv !== undefined) data.sandboxEnv = input.sandboxEnv;
     if (input.nodes !== undefined) data.nodes = input.nodes as unknown as Prisma.InputJsonValue;
     if (input.edges !== undefined) data.edges = input.edges as unknown as Prisma.InputJsonValue;
+    if (input.organizationId !== undefined) data.organization = input.organizationId ? { connect: { id: input.organizationId } } : { disconnect: true };
 
     const updated = await prisma.workflow.update({
       where: { id },
       data,
+      include: {
+        organization: {
+          select: { id: true, name: true },
+        },
+      },
     });
 
     return {
@@ -210,6 +267,8 @@ export class WorkflowService {
       createdAt: updated.createdAt.toISOString(),
       nodes: updated.nodes as unknown as WorkflowNodeType[],
       edges: updated.edges as unknown as Edge[],
+      organizationId: updated.organizationId || undefined,
+      organizationName: updated.organization?.name || undefined,
     };
   }
 
@@ -225,7 +284,7 @@ export class WorkflowService {
       throw new Error("Workflow not found");
     }
 
-    if (userId && existing.userId && existing.userId !== userId) {
+    if (userId && existing.userId && existing.userId !== userId && !existing.organizationId) {
       throw new Error("Unauthorized to delete this workflow");
     }
 

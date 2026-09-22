@@ -2,6 +2,8 @@ import React from "react";
 import Link from "next/link";
 import { AuthCard } from "@/components/auth/AuthCard";
 import { WorkflowShowcase } from "@/components/workflow/WorkflowShowcase";
+import { OrgSwitcher } from "@/components/organization/OrgSwitcher";
+import { OrganizationModals } from "@/components/organization/OrganizationModals";
 import { BotIcon, ShieldCheckIcon, TerminalIcon, ExternalLinkIcon, GitHubIcon, SparklesIcon } from "@/components/ui/icons";
 
 export default function Home() {
@@ -40,6 +42,7 @@ export default function Home() {
 
           {/* Right Links */}
           <div className="flex items-center gap-3 text-xs font-medium">
+            <OrgSwitcher />
             <Link
               href="/workflow"
               className="flex items-center gap-1.5 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 transition-colors shadow-2xs"
@@ -66,6 +69,7 @@ export default function Home() {
             </a>
           </div>
         </div>
+        <OrganizationModals />
       </header>
 
       {/* Main Content Hero */}

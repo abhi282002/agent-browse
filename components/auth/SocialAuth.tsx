@@ -1,10 +1,10 @@
-"use client";
+'use client';
 
-import React from "react";
-import { GoogleIcon, GitHubIcon } from "@/components/ui/icons";
+import { GoogleIcon, GitHubIcon } from '@/components/ui/icons';
+import { Button } from '@/components/ui/button';
 
 interface SocialAuthProps {
-  onSelect?: (provider: "google" | "github") => void;
+  onSelect?: (provider: 'google' | 'github') => void;
   disabled?: boolean;
 }
 
@@ -12,24 +12,26 @@ export function SocialAuth({ onSelect, disabled = false }: SocialAuthProps) {
   return (
     <div className="flex flex-col gap-3">
       <div className="grid grid-cols-2 gap-3">
-        <button
+        <Button
           type="button"
+          variant="outline"
           disabled={disabled}
-          onClick={() => onSelect?.("google")}
-          className="flex h-10 w-full items-center justify-center gap-2.5 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 shadow-xs transition-all hover:border-zinc-300 hover:bg-zinc-50 active:scale-[0.98] disabled:opacity-50"
+          onClick={() => onSelect?.('google')}
+          className="h-10 w-full gap-2.5 rounded-lg border-zinc-200 bg-white text-sm font-medium text-zinc-700 shadow-2xs hover:bg-zinc-50 hover:border-zinc-300"
         >
           <GoogleIcon className="h-4 w-4" />
           <span>Google</span>
-        </button>
-        <button
+        </Button>
+        <Button
           type="button"
+          variant="outline"
           disabled={disabled}
-          onClick={() => onSelect?.("github")}
-          className="flex h-10 w-full items-center justify-center gap-2.5 rounded-lg border border-zinc-200 bg-white px-3 text-sm font-medium text-zinc-700 shadow-xs transition-all hover:border-zinc-300 hover:bg-zinc-50 active:scale-[0.98] disabled:opacity-50"
+          onClick={() => onSelect?.('github')}
+          className="h-10 w-full gap-2.5 rounded-lg border-zinc-200 bg-white text-sm font-medium text-zinc-700 shadow-2xs hover:bg-zinc-50 hover:border-zinc-300"
         >
           <GitHubIcon className="h-4 w-4" />
           <span>GitHub</span>
-        </button>
+        </Button>
       </div>
 
       <div className="relative my-2 flex items-center justify-center">

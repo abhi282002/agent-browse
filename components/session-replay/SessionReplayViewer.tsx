@@ -18,6 +18,7 @@ import { trpc } from '@/lib/trpc/client';
 import { BrowserReplay } from '@/components/VideoPlayer/BrowserSessionReplay';
 import { SessionPagesBar, type SessionPageItem } from '@/components/workflow/flow/execution/console/SessionPagesBar';
 import { RecentSessionsPicker } from './RecentSessionsPicker';
+import { Button } from '@/components/ui/button';
 
 interface SessionReplayViewerProps {
   initialSessionId?: string;
@@ -95,10 +96,12 @@ export function SessionReplayViewer({
                   <span className="font-mono text-xs text-zinc-300 truncate max-w-[200px] sm:max-w-[320px]">
                     {sessionId}
                   </span>
-                  <button
+                  <Button
                     type="button"
+                    variant="ghost"
+                    size="icon-xs"
                     onClick={handleCopy}
-                    className="text-zinc-500 hover:text-zinc-200 p-0.5 transition-colors cursor-pointer"
+                    className="text-zinc-500 hover:text-zinc-200 p-0.5 transition-colors cursor-pointer h-auto w-auto"
                     title="Copy Session ID"
                   >
                     {copied ? (
@@ -106,7 +109,7 @@ export function SessionReplayViewer({
                     ) : (
                       <Copy className="h-3 w-3" />
                     )}
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -145,20 +148,23 @@ export function SessionReplayViewer({
             </a>
           )}
 
-          <button
+          <Button
             type="button"
+            size="sm"
             onClick={handleRefresh}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold transition-colors cursor-pointer"
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold transition-colors cursor-pointer h-auto"
             title="Reload Video Stream"
           >
             <RefreshCw className="h-3.5 w-3.5" />
             <span className="hidden sm:inline">Refresh</span>
-          </button>
+          </Button>
 
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
             onClick={() => setIsFullscreen(!isFullscreen)}
-            className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-200 transition-colors cursor-pointer h-auto w-auto"
             title={isFullscreen ? 'Exit Theater Fullscreen' : 'Theater Fullscreen'}
           >
             {isFullscreen ? (
@@ -166,7 +172,7 @@ export function SessionReplayViewer({
             ) : (
               <Maximize2 className="h-4 w-4" />
             )}
-          </button>
+          </Button>
         </div>
       </div>
 

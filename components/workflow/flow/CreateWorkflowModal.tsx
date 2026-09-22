@@ -1,9 +1,21 @@
-"use client";
+'use client';
 
-import React, { useState } from "react";
-import type { WorkflowBlueprint } from "./types";
-import { createWorkflowFromBlueprint } from "./defaultFlows";
-import { BotIcon, SparklesIcon } from "@/components/ui/icons";
+import React, { useState } from 'react';
+import type { WorkflowBlueprint } from './types';
+import { createWorkflowFromBlueprint } from './defaultFlows';
+import { BotIcon, SparklesIcon } from '@/components/ui/icons';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet';
+
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 
 interface CreateWorkflowModalProps {
   isOpen: boolean;
@@ -13,19 +25,28 @@ interface CreateWorkflowModalProps {
 
 const PRESET_TEMPLATES = [
   {
-    name: "HackerNews Trending Extractor",
-    category: "Data Extraction",
-    description: "Extracts top 30 stories with vote count, comments link, and author metadata into JSON.",
+    name: 'HackerNews Trending Extractor',
+    category: 'Data Extraction',
+    description:
+      'Extracts top 30 stories with vote count, comments link, and author metadata into JSON.',
   },
   {
-    name: "Autonomous Lead Enrichment Bot",
-    category: "Lead Intelligence",
-    description: "Traverses profile cards, verifies email MX records, and normalizes company domains.",
+    name: 'Amazon Price Watcher',
+    category: 'E-Commerce',
+    description:
+      'Monitor retail e-commerce prices, identify dynamic price fluctuations, extract product stock metrics, and trigger webhooks.',
   },
   {
-    name: "Flight & Travel Fare Monitor",
-    category: "Price Tracker",
-    description: "Monitors roundtrip itineraries, extracts airline tariffs, and triggers discount webhooks.",
+    name: 'Hacker News Briefing',
+    category: 'News & Briefing',
+    description:
+      'Scrape top trending developer stories from Hacker News, extract discussions, and compile an executive summary.',
+  },
+  {
+    name: 'GitHub Release Tracker',
+    category: 'Developer Tools',
+    description:
+      'Check release notes, download changelogs, analyze pull request diffs, and notify team on Slack/Discord.',
   },
 ];
 
@@ -34,158 +55,173 @@ export function CreateWorkflowModal({
   onClose,
   onCreate,
 }: CreateWorkflowModalProps) {
-  const [name, setName] = useState("");
-  const [description, setDescription] = useState("");
-  const [category, setCategory] = useState("Data Extraction");
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState('Autonomous Agent');
+  const [description, setDescription] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  const handleApplyPreset = (preset: (typeof PRESET_TEMPLATES)[0]) => {
+    setName(preset.name);
+    setCategory(preset.category);
+    setDescription(preset.description);
+    setError(null);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) {
-      setError("Please provide a workflow name.");
+      setError('Workflow name is required.');
       return;
     }
 
-    const newWf = createWorkflowFromBlueprint({
+    const newWorkflow = createWorkflowFromBlueprint({
       name: name.trim(),
+      category: category.trim() || 'Autonomous Agent',
       description: description.trim(),
-      category: category.trim(),
     });
 
-    onCreate(newWf);
-    // Reset and close
-    setName("");
-    setDescription("");
-    setError(null);
+    onCreate(newWorkflow);
     onClose();
-  };
 
-  const handleApplyPreset = (template: typeof PRESET_TEMPLATES[0]) => {
-    setName(template.name);
-    setCategory(template.category);
-    setDescription(template.description);
+    // Reset Form
+    setName('');
+    setCategory('Autonomous Agent');
+    setDescription('');
     setError(null);
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-      <div
-        className="w-full max-w-lg rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl space-y-5"
-        role="dialog"
-        aria-modal="true"
+    <Sheet
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <SheetContent
+        side="right"
+        className="w-full sm:max-w-lg p-0 flex flex-col bg-white border-l border-zinc-200 shadow-2xl overflow-hidden"
       >
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
+        <SheetHeader className="p-6 border-b border-zinc-100 bg-zinc-50/50">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 text-white shadow-2xs">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-white shadow-2xs">
               <BotIcon className="h-5 w-5" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-zinc-900">
+              <SheetTitle className="text-base font-bold text-zinc-900">
                 Create New Workflow
-              </h3>
-              <p className="text-xs text-zinc-500">
+              </SheetTitle>
+              <SheetDescription className="text-xs text-zinc-500">
                 Define an agent pipeline to execute across browser sandboxes.
-              </p>
+              </SheetDescription>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
+        </SheetHeader>
 
-        {/* Quick Presets */}
-        <div className="space-y-1.5">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
-            Quick Blueprints
-          </span>
-          <div className="flex flex-wrap gap-1.5">
-            {PRESET_TEMPLATES.map((tpl, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => handleApplyPreset(tpl)}
-                className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-[11px] font-medium text-zinc-700 hover:bg-zinc-100 hover:border-zinc-300 transition-colors cursor-pointer"
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            {/* Quick Presets */}
+            <div className="space-y-1.5">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">
+                Quick Blueprints
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {PRESET_TEMPLATES.map((tpl, i) => (
+                  <Button
+                    key={i}
+                    type="button"
+                    variant="outline"
+                    size="xs"
+                    onClick={() => handleApplyPreset(tpl)}
+                    className="flex items-center gap-1 rounded-lg border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-[11px] font-medium text-zinc-700 hover:bg-zinc-100 hover:border-zinc-300 h-auto"
+                  >
+                    <SparklesIcon className="h-3 w-3 text-emerald-500" />
+                    <span>{tpl.name}</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {error && (
+              <div className="rounded-lg bg-red-50 p-2.5 text-xs text-red-600 border border-red-200">
+                {error}
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <Label
+                htmlFor="workflow-name"
+                className="text-xs font-semibold text-zinc-700 block"
               >
-                <SparklesIcon className="h-3 w-3 text-emerald-500" />
-                <span>{tpl.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-3.5">
-          {error && (
-            <div className="rounded-lg bg-red-50 p-2.5 text-xs text-red-600 border border-red-200">
-              {error}
+                Workflow Name
+              </Label>
+              <Input
+                id="workflow-name"
+                type="text"
+                required
+                placeholder="e.g. Arxiv Reasoning Scraper"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className="h-9 bg-zinc-50/50 text-xs focus:bg-white"
+              />
             </div>
-          )}
 
-          <div>
-            <label className="text-xs font-semibold text-zinc-700 block mb-1">
-              Workflow Name
-            </label>
-            <input
-              type="text"
-              required
-              placeholder="e.g. Arxiv Reasoning Scraper"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none transition-colors"
-            />
-          </div>
+            <div className="space-y-1">
+              <Label
+                htmlFor="workflow-category"
+                className="text-xs font-semibold text-zinc-700 block"
+              >
+                Category
+              </Label>
+              <Input
+                id="workflow-category"
+                type="text"
+                placeholder="e.g. Price Monitor"
+                value={category}
+                onChange={(e) => setCategory(e.target.value)}
+                className="h-9 bg-zinc-50/50 text-xs focus:bg-white"
+              />
+            </div>
 
-          <div>
-            <label className="text-xs font-semibold text-zinc-700 block mb-1">
-              Category
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Price Monitor"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none transition-colors"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-zinc-700 block mb-1">
-              Prompt &amp; Objective
-            </label>
-            <textarea
-              rows={3}
-              placeholder="Describe the agent's browser automation instructions, steps, or extraction targets..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none transition-colors"
-            />
+            <div className="space-y-1">
+              <Label
+                htmlFor="workflow-prompt"
+                className="text-xs font-semibold text-zinc-700 block"
+              >
+                Prompt &amp; Objective
+              </Label>
+              <Textarea
+                id="workflow-prompt"
+                rows={4}
+                placeholder="Describe the agent's browser automation instructions, steps, or extraction targets..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className="bg-zinc-50/50 text-xs focus:bg-white resize-none"
+              />
+            </div>
           </div>
 
           {/* Action buttons */}
-          <div className="pt-3 border-t border-zinc-100 flex items-center justify-end gap-2">
-            <button
+          <div className="p-6 border-t border-zinc-100 bg-zinc-50/50 flex items-center justify-end gap-2">
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={onClose}
-              className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 transition-colors cursor-pointer"
+              className="rounded-xl border-zinc-200 bg-white px-4 text-xs font-medium text-zinc-600 hover:bg-zinc-100"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
-              className="rounded-lg bg-zinc-900 px-4 py-1.5 text-xs font-medium text-white hover:bg-zinc-800 transition-colors cursor-pointer shadow-sm"
+              size="sm"
+              className="rounded-xl bg-zinc-900 px-5 text-xs font-medium text-white hover:bg-zinc-800 shadow-sm"
             >
               Initialize Workflow Graph
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }

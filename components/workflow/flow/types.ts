@@ -58,6 +58,8 @@ export interface WorkflowBlueprint {
   sandboxEnv?: string;
   nodes: WorkflowNodeType[];
   edges: Edge[];
+  organizationId?: string;
+  organizationName?: string;
 }
 
 export interface NodeTemplate {

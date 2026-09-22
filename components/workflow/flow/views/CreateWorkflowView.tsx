@@ -2,9 +2,21 @@
 
 import React, { useState } from "react";
 import { BotIcon, SparklesIcon } from "@/components/ui/icons";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 
 interface CreateWorkflowViewProps {
   onCancel: () => void;
+  organizationName?: string;
   onCreate: (params: {
     name: string;
     description: string;
@@ -64,7 +76,7 @@ const SANDBOX_PROFILES = [
   { id: "mobile-viewport", name: "Mobile Viewport Emulation", detail: "iPhone 15 Pro user-agent & touch events" },
 ];
 
-export function CreateWorkflowView({ onCancel, onCreate }: CreateWorkflowViewProps) {
+export function CreateWorkflowView({ onCancel, onCreate, organizationName }: CreateWorkflowViewProps) {
   const [selectedBlueprint, setSelectedBlueprint] = useState("custom");
   const [name, setName] = useState("");
   const [category, setCategory] = useState("Web Automation");
@@ -107,22 +119,31 @@ export function CreateWorkflowView({ onCancel, onCreate }: CreateWorkflowViewPro
             <BotIcon className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-lg sm:text-xl font-bold text-zinc-900 tracking-tight">
-              Create Autonomous Workflow
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg sm:text-xl font-bold text-zinc-900 tracking-tight">
+                Create Autonomous Workflow
+              </h2>
+              {organizationName && (
+                <span className="rounded-full bg-zinc-100 border border-zinc-200 px-2 py-0.5 text-[11px] font-semibold text-zinc-700">
+                  {organizationName}
+                </span>
+              )}
+            </div>
             <p className="text-xs sm:text-sm text-zinc-500">
               Configure goal heuristics, cloud browser profiles, and autonomous agent models.
             </p>
           </div>
         </div>
 
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="sm"
           onClick={onCancel}
           className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 transition-colors cursor-pointer"
         >
           ← Cancel
-        </button>
+        </Button>
       </div>
 
       {/* Blueprint Selector */}
@@ -181,45 +202,43 @@ export function CreateWorkflowView({ onCancel, onCreate }: CreateWorkflowViewPro
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="text-xs font-semibold text-zinc-700 block mb-1">
+            <Label className="text-xs font-semibold text-zinc-700 block mb-1">
               Workflow Name
-            </label>
-            <input
+            </Label>
+            <Input
               type="text"
               required
               placeholder="e.g. Arxiv Reasoning Scraper"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none transition-colors"
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 transition-colors"
             />
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-zinc-700 block mb-1">
+            <Label className="text-xs font-semibold text-zinc-700 block mb-1">
               Category / Domain
-            </label>
-            <input
+            </Label>
+            <Input
               type="text"
               placeholder="e.g. Academic Research"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none transition-colors"
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 transition-colors"
             />
           </div>
         </div>
 
-
-
         <div>
-          <label className="text-xs font-semibold text-zinc-700 block mb-1">
+          <Label className="text-xs font-semibold text-zinc-700 block mb-1">
             Agent Goal &amp; High-Level Heuristics
-          </label>
-          <textarea
+          </Label>
+          <Textarea
             rows={3}
             placeholder="Describe what the agent should accomplish once the page loads (e.g. search for keywords, filter records, click submit, extract PDFs)..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none transition-colors"
+            className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 transition-colors"
           />
         </div>
 
@@ -230,56 +249,69 @@ export function CreateWorkflowView({ onCancel, onCreate }: CreateWorkflowViewPro
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label className="text-xs font-semibold text-zinc-700 block mb-1">
+            <Label className="text-xs font-semibold text-zinc-700 block mb-1">
               Multimodal Vision Model
-            </label>
-            <select
+            </Label>
+            <Select
               value={aiModel}
-              onChange={(e) => setAiModel(e.target.value)}
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none transition-colors cursor-pointer"
+              onValueChange={(val) => {
+                if (val) setAiModel(val);
+              }}
             >
-              {AI_MODELS.map((m) => (
-                <option key={m.id} value={m.name}>
-                  {m.name} ({m.latency})
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full h-9 rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 cursor-pointer">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {AI_MODELS.map((m) => (
+                  <SelectItem key={m.id} value={m.name}>
+                    {m.name} ({m.latency})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-zinc-700 block mb-1">
+            <Label className="text-xs font-semibold text-zinc-700 block mb-1">
               Sandbox Browser Profile
-            </label>
-            <select
+            </Label>
+            <Select
               value={sandboxEnv}
-              onChange={(e) => setSandboxEnv(e.target.value)}
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 py-2 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none transition-colors cursor-pointer"
+              onValueChange={(val) => {
+                if (val) setSandboxEnv(val);
+              }}
             >
-              {SANDBOX_PROFILES.map((s) => (
-                <option key={s.id} value={s.name}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="w-full h-9 rounded-xl border border-zinc-200 bg-zinc-50/50 px-3 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 cursor-pointer">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SANDBOX_PROFILES.map((s) => (
+                  <SelectItem key={s.id} value={s.name}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
 
         {/* Submit Actions */}
         <div className="pt-4 border-t border-zinc-100 flex items-center justify-end gap-3">
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={onCancel}
             className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-semibold text-zinc-600 hover:bg-zinc-50 transition-colors cursor-pointer"
           >
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
             type="submit"
             className="flex items-center gap-2 rounded-xl bg-zinc-900 px-5 py-2 text-xs font-semibold text-white hover:bg-zinc-800 transition-colors shadow-sm cursor-pointer active:scale-[0.99]"
           >
             <SparklesIcon className="h-4 w-4 text-emerald-400" />
             <span>Initialize Workflow Studio</span>
-          </button>
+          </Button>
         </div>
       </form>
     </div>

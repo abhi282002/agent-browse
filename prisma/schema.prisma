@@ -13,13 +13,16 @@ model User {
   email         String    @unique
   passwordHash  String
   workspaceName String?   @default("Personal Workspace")
+  activeOrgId   String?
   role          String    @default("customer")
   plan          String    @default("free")
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
-  sessions      Session[]
-  workflows     Workflow[]
+  sessions        Session[]
+  workflows       Workflow[]
+  memberships     OrganizationMember[]
+  sentInvitations OrganizationInvitation[] @relation("SentInvitations")
 }
 
 model Session {
@@ -33,24 +36,76 @@ model Session {
   @@index([userId])
 }
 
-model Workflow {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  category    String   @default("Custom Automation")
-  targetUrl   String
-  status      String   @default("idle")
-  aiModel     String?  @default("Gemini 2.5 Pro Vision")
-  sandboxEnv  String?  @default("Chromium 128 (CDP Protocol)")
-  nodes       Json
-  edges       Json
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model Organization {
+  id             String    @id @default(cuid())
+  name           String
+  slug           String    @unique
+  description    String?
+  aiInstructions String?
+  defaultAiModel String?   @default("Gemini 2.5 Pro Vision")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  userId      String?
-  user        User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  members     OrganizationMember[]
+  workflows   Workflow[]
+  invitations OrganizationInvitation[]
+}
+
+model OrganizationMember {
+  id             String       @id @default(cuid())
+  organizationId String
+  userId         String
+  role           String       @default("member")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model OrganizationInvitation {
+  id             String       @id @default(cuid())
+  organizationId String
+  email          String
+  role           String       @default("member")
+  token          String       @unique
+  status         String       @default("pending")
+  invitedById    String
+  expiresAt      DateTime
+  createdAt      DateTime     @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invitedBy      User         @relation("SentInvitations", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, email])
+  @@index([email])
+}
+
+model Workflow {
+  id             String        @id @default(cuid())
+  name           String
+  description    String?
+  category       String        @default("Custom Automation")
+  targetUrl      String
+  status         String        @default("idle")
+  aiModel        String?       @default("Gemini 2.5 Pro Vision")
+  sandboxEnv     String?       @default("Chromium 128 (CDP Protocol)")
+  nodes          Json
+  edges          Json
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  userId         String?
+  user           User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+  @@index([organizationId])
 }
 
 model NodeTemplate {

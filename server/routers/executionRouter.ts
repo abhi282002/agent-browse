@@ -4,6 +4,7 @@ import { BrowserbaseService } from '@/server/services/browserbaseService';
 import { TriggerDevService } from '@/server/services/triggerDevService';
 import { AgentService } from '@/server/services/agentService';
 import { EmailService } from '@/server/services/emailService';
+import { prisma } from '@/lib/prisma';
 
 import type { Context } from '@/server/trpc/context';
 
@@ -45,6 +46,14 @@ const executionInputSchema = z.object({
         target: z.string(),
       }),
     )
+    .optional(),
+  organization: z
+    .object({
+      id: z.string(),
+      name: z.string(),
+      aiInstructions: z.string().optional(),
+      defaultAiModel: z.string().optional(),
+    })
     .optional(),
 });
 
@@ -226,10 +235,30 @@ export const executionRouter = router({
           ctx.user?.email ||
           input.nodes.find((n) => n.data?.url?.includes('@'))?.data.url ||
           undefined;
+
+        let resolvedOrg = input.organization;
+        if (!resolvedOrg && input.workflowId) {
+          try {
+            const wf = await prisma.workflow.findUnique({
+              where: { id: input.workflowId },
+              include: { organization: true },
+            });
+            if (wf?.organization) {
+              resolvedOrg = {
+                id: wf.organization.id,
+                name: wf.organization.name,
+                aiInstructions: wf.organization.aiInstructions || undefined,
+                defaultAiModel: wf.organization.defaultAiModel || undefined,
+              };
+            }
+          } catch {}
+        }
+
         return TriggerDevService.triggerWorkflow({
           ...input,
           targetUrl: resolvedTargetUrl,
           userEmail: resolvedEmail,
+          organization: resolvedOrg,
         });
       },
     ),

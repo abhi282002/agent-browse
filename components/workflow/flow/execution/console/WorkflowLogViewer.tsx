@@ -14,6 +14,15 @@ import {
   XCircle,
   Terminal,
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 export interface ExecutionLogEntry {
   id: string;
@@ -127,58 +136,68 @@ export function WorkflowLogViewer({
         {/* Search input */}
         <div className="relative flex-1 min-w-[140px] max-w-[240px]">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-zinc-500" />
-          <input
+          <Input
             type="text"
             placeholder="Filter logs..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-7 pr-2 py-1 bg-zinc-950 border border-zinc-800 rounded-md text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-700 text-xs"
+            className="w-full pl-7 pr-2 h-7 bg-zinc-950 border border-zinc-800 rounded-md text-zinc-200 placeholder-zinc-600 focus:border-zinc-700 text-xs"
           />
         </div>
 
         {/* Step selector */}
         {availableSteps.length > 0 && (
           <div className="flex items-center gap-1">
-            <select
-              value={selectedStep}
-              onChange={(e) => setSelectedStep(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-              className="bg-zinc-950 border border-zinc-800 rounded-md text-[11px] text-zinc-300 px-2 py-1 focus:outline-none cursor-pointer"
+            <Select
+              value={String(selectedStep)}
+              onValueChange={(val) => {
+                if (val) setSelectedStep(val === 'all' ? 'all' : Number(val));
+              }}
             >
-              <option value="all">All Steps ({logs.length})</option>
-              {availableSteps.map(([num, title]) => (
-                <option key={num} value={num}>
-                  Step {num}: {title.length > 20 ? `${title.slice(0, 20)}...` : title}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger className="h-7 bg-zinc-950 border border-zinc-800 rounded-md text-[11px] text-zinc-300 px-2 cursor-pointer focus:border-zinc-700">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="bg-zinc-950 border-zinc-800 text-zinc-200">
+                <SelectItem value="all">All Steps ({logs.length})</SelectItem>
+                {availableSteps.map(([num, title]) => (
+                  <SelectItem key={num} value={String(num)}>
+                    Step {num}: {title.length > 20 ? `${title.slice(0, 20)}...` : title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
 
         {/* Level Filters */}
         <div className="flex items-center gap-1 bg-zinc-950 p-0.5 rounded-md border border-zinc-800">
           {(['all', 'info', 'success', 'warn', 'error'] as const).map((lvl) => (
-            <button
+            <Button
               key={lvl}
               type="button"
+              variant={levelFilter === lvl ? "secondary" : "ghost"}
+              size="xs"
               onClick={() => setLevelFilter(lvl)}
-              className={`px-2 py-0.5 rounded capitalize text-[10px] font-medium transition-colors cursor-pointer ${
+              className={`px-2 py-0.5 rounded capitalize text-[10px] font-medium transition-colors cursor-pointer h-auto ${
                 levelFilter === lvl
                   ? 'bg-zinc-800 text-white font-bold'
                   : 'text-zinc-500 hover:text-zinc-300'
               }`}
             >
               {lvl}
-            </button>
+            </Button>
           ))}
         </div>
 
         {/* Right Actions */}
         <div className="flex items-center gap-1.5 ml-auto">
           {/* Auto-scroll toggle */}
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="xs"
             onClick={() => setAutoScroll(!autoScroll)}
-            className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] border transition-colors cursor-pointer ${
+            className={`flex items-center gap-1 px-2 py-1 rounded text-[11px] border transition-colors cursor-pointer h-auto ${
               autoScroll
                 ? 'border-emerald-700/60 bg-emerald-950/40 text-emerald-400'
                 : 'border-zinc-800 bg-zinc-950 text-zinc-500 hover:text-zinc-300'
@@ -187,31 +206,35 @@ export function WorkflowLogViewer({
           >
             <ArrowDown className={`h-3 w-3 ${autoScroll ? 'text-emerald-400' : 'text-zinc-500'}`} />
             <span className="hidden sm:inline">Follow</span>
-          </button>
+          </Button>
 
           {/* Copy logs */}
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="xs"
             onClick={handleCopyLogs}
             disabled={filteredLogs.length === 0}
-            className="flex items-center gap-1 px-2 py-1 rounded text-[11px] border border-zinc-800 bg-zinc-950 text-zinc-300 hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-40"
+            className="flex items-center gap-1 px-2 py-1 rounded text-[11px] border border-zinc-800 bg-zinc-950 text-zinc-300 hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-40 h-auto"
             title="Copy filtered logs to clipboard"
           >
             {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
             <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy'}</span>
-          </button>
+          </Button>
 
           {/* Clear logs */}
           {onClear && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="icon-xs"
               onClick={onClear}
               disabled={logs.length === 0}
-              className="p-1 rounded text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-40"
+              className="p-1 rounded text-zinc-500 hover:text-rose-400 hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-40 h-auto w-auto"
               title="Clear logs"
             >
               <Trash2 className="h-3.5 w-3.5" />
-            </button>
+            </Button>
           )}
         </div>
       </div>

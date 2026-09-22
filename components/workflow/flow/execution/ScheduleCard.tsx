@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Button } from "@/components/ui/button";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -200,13 +201,15 @@ export function ScheduleCard({ workflowId }: ScheduleCardProps) {
               size="sm"
             />
           )}
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="xs"
             onClick={() => setIsExpanded((v) => !v)}
-            className="rounded-md px-2 py-0.5 text-[11px] font-medium text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 transition-colors cursor-pointer"
+            className="rounded-md px-2 py-0.5 text-[11px] font-medium text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 transition-colors cursor-pointer h-auto"
           >
             {isExpanded ? "Hide" : hasSchedule ? "Edit" : "Configure"}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -230,14 +233,16 @@ export function ScheduleCard({ workflowId }: ScheduleCardProps) {
             )}
           </div>
           <div className="flex justify-end">
-            <button
+            <Button
               type="button"
+              variant="link"
+              size="xs"
               onClick={() => deleteMutation.mutate({ workflowId })}
               disabled={isBusy}
-              className="text-[11px] font-medium text-red-500 hover:text-red-700 hover:underline transition-colors cursor-pointer disabled:opacity-50"
+              className="text-[11px] font-medium text-red-500 hover:text-red-700 hover:underline transition-colors cursor-pointer disabled:opacity-50 p-0 h-auto"
             >
               {deleteMutation.isPending ? "Removing…" : "Remove schedule"}
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -245,14 +250,15 @@ export function ScheduleCard({ workflowId }: ScheduleCardProps) {
       {/* CTA – no schedule, collapsed */}
       {!hasSchedule && !isExpanded && (
         <div className="px-3 pb-3">
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() => setIsExpanded(true)}
-            className="w-full flex items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-zinc-200 py-2 text-xs font-medium text-zinc-400 hover:border-zinc-300 hover:text-zinc-600 transition-colors cursor-pointer"
+            className="w-full flex items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-zinc-200 py-2 text-xs font-medium text-zinc-400 hover:border-zinc-300 hover:text-zinc-600 transition-colors cursor-pointer h-auto"
           >
             <span className="text-base leading-none">+</span>
             <span>Set up automated schedule</span>
-          </button>
+          </Button>
         </div>
       )}
 
@@ -274,19 +280,21 @@ export function ScheduleCard({ workflowId }: ScheduleCardProps) {
               {DAY_LABELS.map((label, idx) => {
                 const selected = form.days.includes(idx);
                 return (
-                  <button
+                  <Button
                     key={idx}
                     type="button"
+                    variant={selected ? "default" : "secondary"}
+                    size="xs"
                     onClick={() => toggleDay(idx)}
                     title={DAY_FULL[idx]}
-                    className={`flex-1 rounded-md py-1.5 text-[11px] font-bold transition-all cursor-pointer select-none ${
+                    className={`flex-1 rounded-md py-1.5 text-[11px] font-bold transition-all cursor-pointer select-none h-auto ${
                       selected
                         ? "bg-zinc-900 text-white shadow-xs"
                         : "bg-zinc-100 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-700"
                     }`}
                   >
                     {label}
-                  </button>
+                  </Button>
                 );
               })}
             </div>
@@ -303,18 +311,20 @@ export function ScheduleCard({ workflowId }: ScheduleCardProps) {
                   preset.days.length === form.days.length &&
                   preset.days.every((d) => form.days.includes(d));
                 return (
-                  <button
+                  <Button
                     key={preset.label}
                     type="button"
+                    variant={active ? "default" : "outline"}
+                    size="xs"
                     onClick={() => setForm((f) => ({ ...f, days: preset.days }))}
-                    className={`rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors cursor-pointer ${
+                    className={`rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors cursor-pointer h-auto ${
                       active
                         ? "border-zinc-900 bg-zinc-900 text-white"
                         : "border-zinc-200 bg-zinc-50 text-zinc-600 hover:bg-zinc-100"
                     }`}
                   >
                     {preset.label}
-                  </button>
+                  </Button>
                 );
               })}
             </div>
@@ -353,18 +363,20 @@ export function ScheduleCard({ workflowId }: ScheduleCardProps) {
               {/* AM / PM toggle */}
               <div className="flex rounded-lg overflow-hidden border border-zinc-200">
                 {(["AM", "PM"] as const).map((period) => (
-                  <button
+                  <Button
                     key={period}
                     type="button"
+                    variant={form.ampm === period ? "default" : "ghost"}
+                    size="xs"
                     onClick={() => setForm((f) => ({ ...f, ampm: period }))}
-                    className={`px-2.5 py-1 text-[11px] font-bold transition-colors cursor-pointer ${
+                    className={`px-2.5 py-1 text-[11px] font-bold transition-colors cursor-pointer rounded-none h-auto ${
                       form.ampm === period
                         ? "bg-zinc-900 text-white"
                         : "bg-white text-zinc-500 hover:bg-zinc-50"
                     }`}
                   >
                     {period}
-                  </button>
+                  </Button>
                 ))}
               </div>
             </div>
@@ -394,11 +406,11 @@ export function ScheduleCard({ workflowId }: ScheduleCardProps) {
 
           {/* Save / Cancel */}
           <div className="flex gap-1.5">
-            <button
+            <Button
               type="button"
               onClick={handleSave}
               disabled={isBusy || form.days.length === 0}
-              className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-zinc-900 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-50"
+              className="flex-1 flex items-center justify-center gap-1.5 rounded-lg bg-zinc-900 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-50 h-auto"
             >
               {scheduleMutation.isPending ? (
                 <>
@@ -408,14 +420,15 @@ export function ScheduleCard({ workflowId }: ScheduleCardProps) {
               ) : (
                 <span>{hasSchedule ? "Update Schedule" : "Enable Schedule"}</span>
               )}
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
+              variant="outline"
               onClick={() => setIsExpanded(false)}
-              className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100 transition-colors cursor-pointer"
+              className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100 transition-colors cursor-pointer h-auto"
             >
               Cancel
-            </button>
+            </Button>
           </div>
         </div>
       )}

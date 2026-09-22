@@ -23,6 +23,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { WorkflowNode } from './WorkflowNode';
 import type { WorkflowNodeType, NodeTemplate } from './types';
+import { Button } from '@/components/ui/button';
 
 // Must be defined outside component to prevent React Flow re-mounting all nodes on every render
 const NODE_TYPES: NodeTypes = {
@@ -327,11 +328,12 @@ export function WorkflowCanvas({
           </span>
         )}
 
-        <button
+        <Button
           type="button"
+          size="sm"
           onClick={() => onSaveWorkflow?.(nodes as WorkflowNodeType[], edges)}
           disabled={isSaving}
-          className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold shadow-sm transition-all cursor-pointer ${
+          className={`flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold shadow-sm transition-all cursor-pointer h-auto ${
             saveStatus === 'saved'
               ? 'bg-emerald-600 text-white'
               : saveStatus === 'error'
@@ -361,7 +363,7 @@ export function WorkflowCanvas({
               <span>Save Workflow</span>
             </>
           )}
-        </button>
+        </Button>
       </div>
 
       {/* Node and Edge Counter Pill (Bottom-Left) */}

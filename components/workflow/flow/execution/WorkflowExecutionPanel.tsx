@@ -10,6 +10,7 @@ import {
   ChromeIcon,
   BotIcon,
 } from '@/components/ui/icons';
+import { Button } from '@/components/ui/button';
 import { ScheduleCard } from './ScheduleCard';
 
 interface WorkflowExecutionPanelProps {
@@ -240,7 +241,7 @@ export function WorkflowExecutionPanel({
       {/* Action Buttons */}
       <div className="space-y-1.5 pt-1">
         {/* Run on Browserbase / Trigger.dev */}
-        <button
+        <Button
           type="button"
           onClick={handleRunCloud}
           disabled={isBusy || workflow.nodes.length === 0}
@@ -258,11 +259,12 @@ export function WorkflowExecutionPanel({
               <span>Run on Browserbase & Trigger.dev</span>
             </>
           )}
-        </button>
+        </Button>
 
         {/* Local Fast Simulation */}
-        <button
+        <Button
           type="button"
+          variant="outline"
           onClick={onRunLocal}
           disabled={isBusy || workflow.nodes.length === 0}
           className="flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-zinc-200 bg-white font-medium text-xs text-zinc-700 hover:bg-zinc-50 transition-colors shadow-2xs cursor-pointer disabled:opacity-50"
@@ -279,7 +281,7 @@ export function WorkflowExecutionPanel({
               <span>Quick Local Simulation</span>
             </>
           )}
-        </button>
+        </Button>
       </div>
     </div>
   );

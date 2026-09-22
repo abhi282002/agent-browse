@@ -1,6 +1,7 @@
 'use client';
 
 import { Terminal } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export interface WorkflowConsoleToggleButtonProps {
   isOpen: boolean;
@@ -16,12 +17,13 @@ export function WorkflowConsoleToggleButton({
   className = '',
 }: WorkflowConsoleToggleButtonProps) {
   return (
-    <button
+    <Button
       type="button"
+      size="sm"
       onClick={onToggle}
-      className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1 text-xs font-medium transition-all cursor-pointer shadow-2xs ${
+      className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1 text-xs font-medium transition-all cursor-pointer shadow-2xs h-auto ${
         isOpen
-          ? 'border-zinc-800 bg-zinc-900 text-white font-semibold'
+          ? 'border-zinc-800 bg-zinc-900 text-white font-semibold hover:bg-zinc-800'
           : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
       } ${className}`}
       title="Toggle Real-time Execution Console & Browserbase Session Relay"
@@ -34,6 +36,6 @@ export function WorkflowConsoleToggleButton({
           <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
         </span>
       )}
-    </button>
+    </Button>
   );
 }

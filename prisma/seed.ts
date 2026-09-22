@@ -44,9 +44,48 @@ async function main() {
   console.log(`Role:      ${adminUser.role}`);
   console.log(`Plan:      ${adminUser.plan}`);
   console.log(`Workspace: ${adminUser.workspaceName}`);
+  // Seed default Organization for Admin
+  const adminOrg = await prisma.organization.upsert({
+    where: { slug: "admin-central-command" },
+    update: {
+      name: "Admin Central Command",
+      description: "Root intelligence workspace for autonomous browser agents.",
+      defaultAiModel: "Gemini 2.5 Pro Vision",
+    },
+    create: {
+      name: "Admin Central Command",
+      slug: "admin-central-command",
+      description: "Root intelligence workspace for autonomous browser agents.",
+      defaultAiModel: "Gemini 2.5 Pro Vision",
+      aiInstructions: "Execute browser journeys with deterministic data extraction and strict schema validation.",
+    },
+  });
+
+  // Assign Admin User as Owner of the seeded organization
+  await prisma.organizationMember.upsert({
+    where: {
+      organizationId_userId: {
+        organizationId: adminOrg.id,
+        userId: adminUser.id,
+      },
+    },
+    update: { role: "owner" },
+    create: {
+      organizationId: adminOrg.id,
+      userId: adminUser.id,
+      role: "owner",
+    },
+  });
+
+  await prisma.user.update({
+    where: { id: adminUser.id },
+    data: { activeOrgId: adminOrg.id },
+  });
+
+  console.log(`Organization: ${adminOrg.name} (${adminOrg.slug})`);
   console.log("-----------------------------------------");
 
-  // Seed default workflow blueprints into PostgreSQL
+  // Seed default workflow blueprints into PostgreSQL under the organization
   for (const wf of DEFAULT_WORKFLOW_SEEDS) {
     await prisma.workflow.upsert({
       where: { id: wf.id },
@@ -55,6 +94,8 @@ async function main() {
         description: wf.description,
         category: wf.category,
         targetUrl: wf.targetUrl || "",
+        organizationId: adminOrg.id,
+        userId: adminUser.id,
         nodes: wf.nodes as any,
         edges: wf.edges as any,
       },
@@ -65,12 +106,14 @@ async function main() {
         category: wf.category,
         targetUrl: wf.targetUrl || "",
         status: wf.status,
+        organizationId: adminOrg.id,
+        userId: adminUser.id,
         nodes: wf.nodes as any,
         edges: wf.edges as any,
       },
     });
   }
-  console.log(`Seeded ${DEFAULT_WORKFLOW_SEEDS.length} default workflows into database.`);
+  console.log(`Seeded ${DEFAULT_WORKFLOW_SEEDS.length} default workflows linked to ${adminOrg.name}.`);
 }
 
 main()

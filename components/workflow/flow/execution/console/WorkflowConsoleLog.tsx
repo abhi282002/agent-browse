@@ -24,6 +24,7 @@ import type { WorkflowBlueprint } from '../../types';
 import type { WorkflowExecutionResult } from '@/server/services/browserbaseService';
 import { WorkflowLogViewer, type ExecutionLogEntry } from './WorkflowLogViewer';
 import { BrowserbaseSessionRelay } from './BrowserbaseSessionRelay';
+import { Button } from '@/components/ui/button';
 
 interface WorkflowConsoleLogProps {
   workflow: WorkflowBlueprint;
@@ -255,79 +256,92 @@ export function WorkflowConsoleLog({
         <div className="flex items-center gap-1.5">
           {/* Run button if idle */}
           {!isRunning && onRunWorkflow && (
-            <button
+            <Button
               type="button"
+              size="sm"
               onClick={onRunWorkflow}
-              className="flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] px-2.5 py-1 transition-colors cursor-pointer mr-1"
+              className="flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] px-2.5 py-1 transition-colors cursor-pointer mr-1 h-auto"
               title="Execute this workflow"
             >
               <Play className="h-3 w-3 fill-current" />
               <span>Run</span>
-            </button>
+            </Button>
           )}
 
           {/* Height Presets (only shown when expanded) */}
           {!isMinimized && !isFullscreen && (
             <div className="hidden md:flex items-center gap-1 bg-zinc-950 px-1 py-0.5 rounded border border-zinc-800 text-[10px] text-zinc-400 font-mono">
-              <button
+              <Button
                 type="button"
+                variant="ghost"
+                size="xs"
                 onClick={() => setConsoleHeight(320)}
-                className={`px-1.5 py-0.5 rounded hover:text-white cursor-pointer ${consoleHeight === 320 ? 'bg-zinc-800 text-white font-bold' : ''}`}
+                className={`px-1.5 py-0.5 rounded hover:text-white cursor-pointer h-auto ${consoleHeight === 320 ? 'bg-zinc-800 text-white font-bold' : ''}`}
                 title="Compact Height (320px)"
               >
                 SM
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="ghost"
+                size="xs"
                 onClick={() => setConsoleHeight(460)}
-                className={`px-1.5 py-0.5 rounded hover:text-white cursor-pointer ${consoleHeight === 460 ? 'bg-zinc-800 text-white font-bold' : ''}`}
+                className={`px-1.5 py-0.5 rounded hover:text-white cursor-pointer h-auto ${consoleHeight === 460 ? 'bg-zinc-800 text-white font-bold' : ''}`}
                 title="Medium Height (460px)"
               >
                 MD
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="ghost"
+                size="xs"
                 onClick={() => setConsoleHeight(640)}
-                className={`px-1.5 py-0.5 rounded hover:text-white cursor-pointer ${consoleHeight === 640 ? 'bg-zinc-800 text-white font-bold' : ''}`}
+                className={`px-1.5 py-0.5 rounded hover:text-white cursor-pointer h-auto ${consoleHeight === 640 ? 'bg-zinc-800 text-white font-bold' : ''}`}
                 title="Large Height (640px)"
               >
                 LG
-              </button>
+              </Button>
             </div>
           )}
 
           {/* Minimize / Expand Toggle */}
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
             onClick={() => setIsMinimized(!isMinimized)}
-            className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+            className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer h-auto w-auto"
             title={isMinimized ? 'Expand Console' : 'Minimize Console'}
           >
             {isMinimized ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-          </button>
+          </Button>
 
           {/* Fullscreen Toggle */}
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
             onClick={() => {
               setIsFullscreen(!isFullscreen);
               setIsMinimized(false);
             }}
-            className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer"
+            className="p-1 rounded text-zinc-400 hover:text-white hover:bg-zinc-800 transition-colors cursor-pointer h-auto w-auto"
             title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Console'}
           >
             {isFullscreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          </button>
+          </Button>
 
           {/* Close button */}
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="icon-xs"
             onClick={onClose}
-            className="p-1 rounded text-zinc-400 hover:text-rose-400 hover:bg-zinc-800 transition-colors cursor-pointer"
+            className="p-1 rounded text-zinc-400 hover:text-rose-400 hover:bg-zinc-800 transition-colors cursor-pointer h-auto w-auto"
             title="Close Console"
           >
             <X className="h-4 w-4" />
-          </button>
+          </Button>
         </div>
       </div>
 

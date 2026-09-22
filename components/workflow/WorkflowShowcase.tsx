@@ -8,6 +8,7 @@ import {
   BotIcon,
   ChromeIcon,
 } from '@/components/ui/icons';
+import { Button } from '@/components/ui/button';
 import { WORKFLOW_STEPS } from './workflowData';
 import { WorkflowNodeCard } from './WorkflowNodeCard';
 import { WorkflowConnector } from './WorkflowConnector';
@@ -57,10 +58,12 @@ export function WorkflowShowcase() {
             <span>Live Browser Sandbox</span>
           </div>
           <div className="flex items-center gap-1.5 pl-2 border-l border-zinc-200">
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => setIsPlaying(!isPlaying)}
-              className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 transition-colors cursor-pointer"
+              className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 transition-colors cursor-pointer h-auto"
             >
               {isPlaying ? (
                 <>
@@ -73,19 +76,21 @@ export function WorkflowShowcase() {
                   <span>Resume</span>
                 </>
               )}
-            </button>
+            </Button>
 
-            <button
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={() => {
                 setCurrentStepIndex(0);
                 setIsPlaying(true);
               }}
-              className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50 transition-colors cursor-pointer"
+              className="flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-xs font-medium text-zinc-600 hover:bg-zinc-50 transition-colors cursor-pointer h-auto"
               title="Restart animation flow"
             >
               <RefreshCwIcon className="h-3 w-3" />
-            </button>
+            </Button>
           </div>
         </div>
       </div>

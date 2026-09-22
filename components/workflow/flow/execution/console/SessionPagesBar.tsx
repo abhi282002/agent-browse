@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { Film } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 export interface SessionPageItem {
   pageId: string;
@@ -39,13 +40,15 @@ export function SessionPagesBar({
               (page.url ? page.url.replace(/^https?:\/\//, '') : `Page ${index + 1}`);
 
             return (
-              <button
+              <Button
                 key={page.pageId}
                 type="button"
+                variant="ghost"
+                size="xs"
                 onClick={() => onSelectPage(page.pageId)}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-mono transition-all cursor-pointer shrink-0 border ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[11px] font-mono transition-all cursor-pointer shrink-0 border h-auto ${
                   isSelected
-                    ? 'bg-emerald-950/80 text-emerald-300 border-emerald-600/60 shadow-xs font-semibold'
+                    ? 'bg-emerald-950/80 text-emerald-300 border-emerald-600/60 shadow-xs font-semibold hover:bg-emerald-950'
                     : 'bg-zinc-900/80 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200 border-zinc-800'
                 }`}
                 title={`Page ${index + 1}: ${page.url || page.pageId}`}
@@ -58,7 +61,7 @@ export function SessionPagesBar({
                 <span className="truncate max-w-[140px] sm:max-w-[200px]">
                   {index + 1}. {displayTitle}
                 </span>
-              </button>
+              </Button>
             );
           })}
         </div>

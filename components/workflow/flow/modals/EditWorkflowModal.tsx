@@ -3,43 +3,59 @@
 import React, { useState, useEffect } from "react";
 import type { WorkflowBlueprint } from "../types";
 import { BotIcon, SparklesIcon, ChromeIcon, CheckIcon } from "@/components/ui/icons";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 
 interface EditWorkflowModalProps {
   isOpen: boolean;
   workflow: WorkflowBlueprint | null;
   onClose: () => void;
   onSave: (details: {
-    name?: string;
-    description?: string;
-    category?: string;
-    targetUrl?: string;
+    id: string;
+    name: string;
+    description: string;
+    category: string;
     aiModel?: string;
     sandboxEnv?: string;
-    updateNodeUrls?: boolean;
   }) => Promise<void> | void;
 }
 
 const CATEGORIES = [
-  "Data Extraction",
-  "Web Automation",
-  "Price Intelligence",
-  "Lead Gen",
-  "Auth & Form",
+  "E-Commerce",
+  "News & Briefing",
+  "Developer Tools",
+  "Lead Intelligence",
+  "Price Tracker",
+  "Autonomous Agent",
   "Custom Automation",
 ];
 
 const AI_MODELS = [
-  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro Vision", latency: "Google DeepMind • Multimodal DOM" },
-  { id: "grok-2-vision", name: "Grok 2 Vision (xAI)", latency: "xAI • Deep Web Reasoning" },
-  { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", latency: "Google • Low Latency Realtime" },
-  { id: "claude-3.7", name: "Claude 3.7 Sonnet", latency: "Anthropic • Computer Use CDP" },
-  { id: "gpt-4o", name: "GPT-4o Vision", latency: "OpenAI • General Tools" },
+  { id: "gemini-2.5-pro", name: "Gemini 2.5 Pro Vision", latency: "Fast, Multimodal" },
+  { id: "gemini-2.5-flash", name: "Gemini 2.5 Flash", latency: "Ultra-fast" },
+  { id: "grok-2-vision", name: "Grok 2 Vision", latency: "Advanced Heuristics" },
 ];
 
 const SANDBOX_PROFILES = [
-  { id: "chrome-cdp", name: "Chromium 128 (CDP Protocol)", detail: "Isolated VM with CDP DevTools stream" },
-  { id: "stealth-proxy", name: "Stealth Proxy Residential Pool", detail: "Bypasses Cloudflare / Akamai / TLS checks" },
-  { id: "mobile-viewport", name: "Mobile Viewport Emulation", detail: "iPhone 15 Pro user-agent & touch events" },
+  { id: "chromium-headless", name: "Headless Chromium", detail: "Fast & lightweight" },
+  { id: "chromium-stealth", name: "Stealth Chromium", detail: "Cloudflare & Captcha bypass" },
+  { id: "cdp-isolated", name: "Dedicated CDP Pod", detail: "Persistent auth state" },
 ];
 
 export function EditWorkflowModal({
@@ -49,209 +65,224 @@ export function EditWorkflowModal({
   onSave,
 }: EditWorkflowModalProps) {
   const [name, setName] = useState("");
-  const [category, setCategory] = useState("Web Automation");
   const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("Autonomous Agent");
   const [aiModel, setAiModel] = useState("Gemini 2.5 Pro Vision");
-  const [sandboxEnv, setSandboxEnv] = useState("Chromium 128 (CDP Protocol)");
+  const [sandboxEnv, setSandboxEnv] = useState("Headless Chromium");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Sync state when active workflow changes or modal opens
   useEffect(() => {
     if (workflow) {
       setName(workflow.name || "");
-      setCategory(workflow.category || "Web Automation");
       setDescription(workflow.description || "");
+      setCategory(workflow.category || "Autonomous Agent");
       setAiModel(workflow.aiModel || "Gemini 2.5 Pro Vision");
-      setSandboxEnv(workflow.sandboxEnv || "Chromium 128 (CDP Protocol)");
+      setSandboxEnv(workflow.sandboxEnv || "Headless Chromium");
       setError(null);
     }
-  }, [workflow, isOpen]);
-
-  if (!isOpen || !workflow) return null;
+  }, [workflow]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!workflow) return;
 
     if (!name.trim()) {
       setError("Workflow name is required.");
       return;
     }
 
-    setIsSubmitting(true);
-    setError(null);
-
     try {
+      setIsSubmitting(true);
+      setError(null);
       await onSave({
+        id: workflow.id,
         name: name.trim(),
-        category: category.trim(),
         description: description.trim(),
+        category,
         aiModel,
         sandboxEnv,
       });
       onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to update workflow settings");
+    } catch (err: any) {
+      setError(err?.message || "Failed to update workflow configurations.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
-      <div
-        className="w-full max-w-2xl rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl space-y-5 max-h-[90vh] overflow-y-auto"
-        role="dialog"
-        aria-modal="true"
+    <Sheet
+      open={isOpen}
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
+      <SheetContent
+        side="right"
+        className="w-full sm:max-w-xl p-0 flex flex-col bg-white border-l border-zinc-200 shadow-2xl overflow-hidden"
       >
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-zinc-100">
+        <SheetHeader className="p-6 border-b border-zinc-100 bg-zinc-50/50">
           <div className="flex items-center gap-2.5">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-zinc-900 text-white shadow-2xs">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-white shadow-2xs">
               <BotIcon className="h-5 w-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-zinc-900">
+                <SheetTitle className="text-base font-bold text-zinc-900">
                   Edit Workflow Settings
-                </h3>
-                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-mono text-zinc-600">
-                  {workflow.nodes.length} Steps
-                </span>
+                </SheetTitle>
+                {workflow && (
+                  <span className="rounded-full bg-zinc-100 border border-zinc-200 px-2 py-0.5 text-[10px] font-mono text-zinc-600">
+                    {workflow.nodes.length} Steps
+                  </span>
+                )}
               </div>
-              <p className="text-xs text-zinc-500">
+              <SheetDescription className="text-xs text-zinc-500">
                 Update workflow model, category, and pipeline configurations.
-              </p>
+              </SheetDescription>
             </div>
           </div>
+        </SheetHeader>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 transition-colors cursor-pointer"
-          >
-            ✕
-          </button>
-        </div>
+        <form onSubmit={handleSubmit} className="flex-1 flex flex-col min-h-0">
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            {error && (
+              <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-xs text-red-700 flex items-center gap-2">
+                <span>⚠️</span>
+                <span>{error}</span>
+              </div>
+            )}
 
-        {error && (
-          <div className="rounded-xl bg-red-50 border border-red-200 p-3 text-xs text-red-700 flex items-center gap-2">
-            <span>⚠️</span>
-            <span>{error}</span>
-          </div>
-        )}
+            {/* Workflow Name & Category */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label htmlFor="edit-wf-name" className="text-xs font-bold text-zinc-700 block">
+                  Workflow Name
+                </Label>
+                <Input
+                  id="edit-wf-name"
+                  type="text"
+                  required
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g., HackerNews Trending Monitor"
+                  className="h-9 bg-zinc-50/50 text-xs focus:bg-white"
+                />
+              </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-zinc-700 block">
+                  Category
+                </Label>
+                <Select
+                  value={category}
+                  onValueChange={(val) => {
+                    if (val) setCategory(val);
+                  }}
+                >
+                  <SelectTrigger className="w-full h-9 rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 cursor-pointer">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
 
-          {/* Workflow Name & Category */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Description */}
             <div className="space-y-1">
-              <label className="text-xs font-bold text-zinc-700 block">
-                Workflow Name
-              </label>
-              <input
-                type="text"
-                required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g., HackerNews Trending Monitor"
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none"
+              <Label htmlFor="edit-wf-desc" className="text-xs font-bold text-zinc-700 block">
+                Workflow Description
+              </Label>
+              <Textarea
+                id="edit-wf-desc"
+                rows={2}
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Explain the purpose, triggers, or goal of this automation..."
+                className="bg-zinc-50/50 text-xs focus:bg-white resize-none"
               />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-zinc-700 block">
-                Category
-              </label>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none cursor-pointer"
-              >
-                {CATEGORIES.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat}
-                  </option>
+            {/* AI Model Selection */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-zinc-700 flex items-center gap-1.5">
+                <SparklesIcon className="h-3.5 w-3.5 text-emerald-600" />
+                <span>AI Vision &amp; Reasoning Model</span>
+              </Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {AI_MODELS.map((m) => (
+                  <Button
+                    key={m.id}
+                    type="button"
+                    variant="ghost"
+                    onClick={() => setAiModel(m.name)}
+                    className={`flex h-auto flex-col text-left items-start p-2.5 rounded-xl border transition-all ${
+                      aiModel === m.name
+                        ? "border-emerald-600 bg-emerald-50/50 ring-1 ring-emerald-600 hover:bg-emerald-50/50"
+                        : "border-zinc-200 bg-zinc-50/40 hover:bg-zinc-50 hover:border-zinc-300"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <span className="text-xs font-bold text-zinc-900">{m.name}</span>
+                      {aiModel === m.name && <CheckIcon className="h-3.5 w-3.5 text-emerald-600" />}
+                    </div>
+                    <span className="text-[10px] text-zinc-500 mt-0.5 font-normal">{m.latency}</span>
+                  </Button>
                 ))}
-              </select>
+              </div>
+            </div>
+
+            {/* Sandbox Environment Profile */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold text-zinc-700 flex items-center gap-1.5">
+                <ChromeIcon className="h-3.5 w-3.5 text-zinc-600" />
+                <span>Browser Sandbox Environment</span>
+              </Label>
+              <Select
+                value={sandboxEnv}
+                onValueChange={(val) => {
+                  if (val) setSandboxEnv(val);
+                }}
+              >
+                <SelectTrigger className="w-full h-9 rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 cursor-pointer">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SANDBOX_PROFILES.map((p) => (
+                    <SelectItem key={p.id} value={p.name}>
+                      {p.name} — {p.detail}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
-          {/* Description */}
-          <div className="space-y-1">
-            <label className="text-xs font-bold text-zinc-700 block">
-              Workflow Description
-            </label>
-            <textarea
-              rows={2}
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Explain the purpose, triggers, or goal of this automation..."
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 p-3 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none resize-none"
-            />
-          </div>
-
-          {/* AI Model Selection */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-zinc-700 flex items-center gap-1.5">
-              <SparklesIcon className="h-3.5 w-3.5 text-emerald-600" />
-              <span>AI Vision &amp; Reasoning Model</span>
-            </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {AI_MODELS.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setAiModel(m.name)}
-                  className={`flex flex-col text-left p-2.5 rounded-xl border transition-all cursor-pointer ${
-                    aiModel === m.name
-                      ? "border-emerald-600 bg-emerald-50/50 ring-1 ring-emerald-600"
-                      : "border-zinc-200 bg-zinc-50/40 hover:bg-zinc-50 hover:border-zinc-300"
-                  }`}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <span className="text-xs font-bold text-zinc-900">{m.name}</span>
-                    {aiModel === m.name && <CheckIcon className="h-3.5 w-3.5 text-emerald-600" />}
-                  </div>
-                  <span className="text-[10px] text-zinc-500 mt-0.5">{m.latency}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Sandbox Environment Profile */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-bold text-zinc-700 flex items-center gap-1.5">
-              <ChromeIcon className="h-3.5 w-3.5 text-zinc-600" />
-              <span>Browser Sandbox Environment</span>
-            </label>
-            <select
-              value={sandboxEnv}
-              onChange={(e) => setSandboxEnv(e.target.value)}
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50/50 px-3.5 py-2 text-xs text-zinc-900 focus:bg-white focus:border-zinc-900 focus:outline-none cursor-pointer"
-            >
-              {SANDBOX_PROFILES.map((p) => (
-                <option key={p.id} value={p.name}>
-                  {p.name} — {p.detail}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Modal Actions */}
-          <div className="pt-3 border-t border-zinc-100 flex items-center justify-end gap-2">
-            <button
+          {/* Actions */}
+          <div className="p-6 border-t border-zinc-100 bg-zinc-50/50 flex items-center justify-end gap-2">
+            <Button
               type="button"
+              variant="outline"
+              size="sm"
               onClick={onClose}
               disabled={isSubmitting}
-              className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50 transition-colors cursor-pointer"
+              className="rounded-xl border-zinc-200 bg-white px-4 text-xs font-semibold text-zinc-700 hover:bg-zinc-100"
             >
               Cancel
-            </button>
-            <button
+            </Button>
+            <Button
               type="submit"
+              size="sm"
               disabled={isSubmitting}
-              className="flex items-center gap-1.5 rounded-xl bg-zinc-900 px-5 py-2 text-xs font-semibold text-white hover:bg-zinc-800 shadow-sm transition-all cursor-pointer disabled:opacity-60"
+              className="flex items-center gap-1.5 rounded-xl bg-zinc-900 px-5 text-xs font-semibold text-white hover:bg-zinc-800 shadow-sm disabled:opacity-60"
             >
               {isSubmitting ? (
                 <>
@@ -264,10 +295,10 @@ export function EditWorkflowModal({
                   <span>Save Changes</span>
                 </>
               )}
-            </button>
+            </Button>
           </div>
         </form>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }

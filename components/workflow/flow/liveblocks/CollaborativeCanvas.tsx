@@ -25,6 +25,7 @@ import { useLiveblocksFlow, Cursors } from '@liveblocks/react-flow';
 import { WorkflowNode } from '../WorkflowNode';
 import type { WorkflowNodeType, NodeTemplate } from '../types';
 import { BotIcon, SparklesIcon } from '@/components/ui/icons';
+import { Button } from '@/components/ui/button';
 import { CollaboratorAvatars } from './CollaboratorAvatars';
 
 const NODE_TYPES: NodeTypes = {
@@ -458,18 +459,20 @@ export function CollaborativeCanvas({
 
         {/* Manual Save Button */}
         {onSaveWorkflow && (
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() =>
               nodes && edges && onSaveWorkflow(nodes as WorkflowNodeType[], edges)
             }
             disabled={isSaving || saveStatus === 'saving'}
-            className="flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white/90 px-3 py-1 text-xs font-medium text-zinc-700 shadow-2xs backdrop-blur-md hover:bg-zinc-50 hover:text-zinc-900 transition-colors cursor-pointer disabled:opacity-60"
+            className="flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white/90 px-3 py-1 text-xs font-medium text-zinc-700 shadow-2xs backdrop-blur-md hover:bg-zinc-50 hover:text-zinc-900 transition-colors cursor-pointer disabled:opacity-60 h-auto"
             title="Persist flow changes to PostgreSQL database"
           >
             <SparklesIcon className="h-3 w-3 text-emerald-500" />
             <span>Save to DB</span>
-          </button>
+          </Button>
         )}
       </div>
     </div>

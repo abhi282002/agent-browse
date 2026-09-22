@@ -8,6 +8,7 @@ import { SignUpForm } from "./SignUpForm";
 import { AuthenticatedCard } from "./AuthenticatedCard";
 import { ChromeIcon, BotIcon, LockIcon } from "@/components/ui/icons";
 import { trpc } from "@/lib/trpc/client";
+import { Button } from "@/components/ui/button";
 
 export function AuthCard() {
   const [activeTab, setActiveTab] = useState<"signin" | "signup">("signin");
@@ -46,24 +47,28 @@ export function AuthCard() {
 
         {/* Segmented Switcher */}
         <div className="relative mb-6 grid grid-cols-2 rounded-xl bg-zinc-100 p-1">
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={() => setActiveTab("signin")}
-            className={`relative z-10 py-2 text-xs font-semibold transition-colors cursor-pointer ${
+            className={`relative z-10 py-2 h-auto text-xs font-semibold hover:bg-transparent ${
               activeTab === "signin" ? "text-zinc-900" : "text-zinc-500 hover:text-zinc-800"
             }`}
           >
             Sign In
-          </button>
-          <button
+          </Button>
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
             onClick={() => setActiveTab("signup")}
-            className={`relative z-10 py-2 text-xs font-semibold transition-colors cursor-pointer ${
+            className={`relative z-10 py-2 h-auto text-xs font-semibold hover:bg-transparent ${
               activeTab === "signup" ? "text-zinc-900" : "text-zinc-500 hover:text-zinc-800"
             }`}
           >
             Create Account
-          </button>
+          </Button>
 
           {/* Animated Tab Background Indicator */}
           <motion.div
