@@ -5,6 +5,7 @@ import {
   buildWorkflowEmailHtml,
   extractStepPipelineContext,
 } from '../emailFormatterUtils';
+import { OrganizationService } from '../organizationService';
 
 /**
  * Email Archetype Handler
@@ -31,19 +32,18 @@ export const executeEmailNode: NodeHandler = async (node, ctx) => {
     totalStories,
   } = extractStepPipelineContext(ctx.previousStepOutput, ctx.pipelineOutputs);
 
-  const resolvedTargetUrl =
-    pickFirstString(
-      node.data.url && node.data.url.startsWith('http') ? node.data.url : '',
-      ctx.targetUrl && ctx.targetUrl.startsWith('http') ? ctx.targetUrl : '',
-      ctx.workflowNodes?.find((n) => n.data?.url && n.data.url.startsWith('http'))
-        ?.data.url,
-      newsDigest.length > 0 &&
+  const resolvedTargetUrl = pickFirstString(
+    node.data.url && node.data.url.startsWith('http') ? node.data.url : '',
+    ctx.targetUrl && ctx.targetUrl.startsWith('http') ? ctx.targetUrl : '',
+    ctx.workflowNodes?.find((n) => n.data?.url && n.data.url.startsWith('http'))
+      ?.data.url,
+    newsDigest.length > 0 &&
       newsDigest[0]?.url &&
       newsDigest[0].url.startsWith('http')
-        ? newsDigest[0].url
-        : '',
-      'https://agentbrowse.com',
-    );
+      ? newsDigest[0].url
+      : '',
+    'https://agentbrowse.com',
+  );
 
   const subject =
     (node.data.title && node.data.title !== 'Email Notification'
@@ -138,28 +138,40 @@ export const executeEmailNode: NodeHandler = async (node, ctx) => {
     rawDataPreview,
   });
 
-  const sendRes = await EmailService.sendEmail(
-    {
-      to: recipient,
-      subject,
-      html,
-      text: bodyContent,
-    },
-    providerType,
+  //pick the organization id of the current workflow
+  const orgId = pickFirstString(node.data.organizationId, ctx.organization?.id);
+
+  //fetch all member with in that organization
+
+  const orgMembers = await OrganizationService.getOrganizationMembers(orgId);
+
+  const sendRes = await Promise.all(
+    orgMembers.map((member) =>
+      EmailService.sendEmail(
+        {
+          to: member.user.email,
+          subject,
+          html,
+          text: bodyContent,
+        },
+        providerType,
+      ),
+    ),
   );
 
   logs.push(
-    `Email dispatched successfully via ${sendRes.provider} (${sendRes.mode}): Message ID = ${sendRes.id}`,
+    `Email dispatched successfully via ${sendRes[0].provider} (${sendRes[0].mode}): Message ID = ${sendRes[0].id}`,
   );
 
   return {
     output: {
-      messageId: sendRes.id,
-      recipient: sendRes.recipient,
-      subject: sendRes.subject,
-      mode: sendRes.mode,
-      provider: sendRes.provider,
-      deliveredAt: sendRes.deliveredAt,
+      messageId: sendRes[0].id,
+      recipient: sendRes[0].recipient,
+      subject: sendRes[0].subject,
+      mode: sendRes[0].mode,
+      provider: sendRes[0].provider,
+      deliveredAt: sendRes[0].deliveredAt,
+      totalMembers: orgMembers.length,
       includedSummary: Boolean(extractedSummary || categorizedDigestText),
       storiesDelivered: newsDigest.length,
     },

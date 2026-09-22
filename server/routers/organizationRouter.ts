@@ -1,6 +1,6 @@
-import { z } from "zod";
-import { router, protectedProcedure } from "@/server/trpc/trpc";
-import { OrganizationService } from "@/server/services/organizationService";
+import { z } from 'zod';
+import { router, protectedProcedure } from '@/server/trpc/trpc';
+import { OrganizationService } from '@/server/services/organizationService';
 
 export const organizationRouter = router({
   /**
@@ -32,11 +32,11 @@ export const organizationRouter = router({
   create: protectedProcedure
     .input(
       z.object({
-        name: z.string().min(1, "Organization name is required"),
+        name: z.string().min(1, 'Organization name is required'),
         description: z.string().optional(),
         aiInstructions: z.string().optional(),
         defaultAiModel: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       return OrganizationService.createOrganization(input, ctx.user.id);
@@ -50,7 +50,7 @@ export const organizationRouter = router({
     .mutation(async ({ input, ctx }) => {
       return OrganizationService.switchActiveOrganization(
         input.organizationId,
-        ctx.user.id
+        ctx.user.id,
       );
     }),
 
@@ -61,12 +61,38 @@ export const organizationRouter = router({
     .input(
       z.object({
         organizationId: z.string(),
-        email: z.string().email("Invalid email address"),
-        role: z.enum(["owner", "admin", "member"]).default("member"),
-      })
+        email: z.string().email('Invalid email address'),
+        role: z.enum(['owner', 'admin', 'member']).default('member'),
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       return OrganizationService.addOrInviteMember(input, ctx.user.id);
+    }),
+
+  // list my pending invitation
+  getMyPendingInvitations: protectedProcedure.query(async ({ ctx }) => {
+    return OrganizationService.listMyPendingInvitation(ctx.user.email);
+  }),
+
+  getOrgMembers: protectedProcedure
+    .input(z.object({ organizationId: z.string() }))
+    .query(async ({ input, ctx }) => {
+      return OrganizationService.getOrganizationMembers(input.organizationId);
+    }),
+
+  acceptPendingInvitation: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      return OrganizationService.acceptPendingInvitation(input.id, ctx.user.id);
+    }),
+
+  declinePendingInvitation: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input, ctx }) => {
+      return OrganizationService.declinePendingInvitation(
+        input.id,
+        ctx.user.id,
+      );
     }),
 
   /**
@@ -77,13 +103,13 @@ export const organizationRouter = router({
       z.object({
         organizationId: z.string(),
         targetUserId: z.string(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       return OrganizationService.removeMember(
         input.organizationId,
         input.targetUserId,
-        ctx.user.id
+        ctx.user.id,
       );
     }),
 
@@ -95,15 +121,15 @@ export const organizationRouter = router({
       z.object({
         organizationId: z.string(),
         targetUserId: z.string(),
-        role: z.enum(["owner", "admin", "member"]),
-      })
+        role: z.enum(['owner', 'admin', 'member']),
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       return OrganizationService.updateMemberRole(
         input.organizationId,
         input.targetUserId,
         input.role,
-        ctx.user.id
+        ctx.user.id,
       );
     }),
 
@@ -118,7 +144,7 @@ export const organizationRouter = router({
         description: z.string().optional(),
         aiInstructions: z.string().optional(),
         defaultAiModel: z.string().optional(),
-      })
+      }),
     )
     .mutation(async ({ input, ctx }) => {
       return OrganizationService.updateSettings(input, ctx.user.id);

@@ -1,5 +1,5 @@
-import { prisma } from "@/lib/prisma";
-import type { Prisma } from "@prisma/client";
+import { prisma } from '@/lib/prisma';
+import type { Prisma } from '@prisma/client';
 
 export interface CreateOrganizationInput {
   name: string;
@@ -19,17 +19,17 @@ export interface UpdateOrganizationInput {
 export interface AddOrInviteMemberInput {
   organizationId: string;
   email: string;
-  role?: "owner" | "admin" | "member";
+  role?: 'owner' | 'admin' | 'member';
 }
 
 function generateSlug(name: string): string {
   const base = name
     .toLowerCase()
     .trim()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
   const randomSuffix = Math.random().toString(36).substring(2, 7);
-  return `${base || "org"}-${randomSuffix}`;
+  return `${base || 'org'}-${randomSuffix}`;
 }
 
 export class OrganizationService {
@@ -38,7 +38,7 @@ export class OrganizationService {
    */
   static async createOrganization(
     input: CreateOrganizationInput,
-    userId: string
+    userId: string,
   ) {
     const slug = generateSlug(input.name);
 
@@ -48,11 +48,11 @@ export class OrganizationService {
         slug,
         description: input.description?.trim() || null,
         aiInstructions: input.aiInstructions?.trim() || null,
-        defaultAiModel: input.defaultAiModel?.trim() || "Gemini 2.5 Pro Vision",
+        defaultAiModel: input.defaultAiModel?.trim() || 'Gemini 2.5 Pro Vision',
         members: {
           create: {
             userId,
-            role: "owner",
+            role: 'owner',
           },
         },
       },
@@ -94,7 +94,7 @@ export class OrganizationService {
           },
         },
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: 'asc' },
     });
 
     return memberships.map((m) => ({
@@ -125,7 +125,7 @@ export class OrganizationService {
     });
 
     if (!memberRecord) {
-      throw new Error("You do not have access to this organization.");
+      throw new Error('You do not have access to this organization.');
     }
 
     const org = await prisma.organization.findUnique({
@@ -143,11 +143,11 @@ export class OrganizationService {
               },
             },
           },
-          orderBy: { createdAt: "asc" },
+          orderBy: { createdAt: 'asc' },
         },
         invitations: {
-          where: { status: "pending" },
-          orderBy: { createdAt: "desc" },
+          where: { status: 'pending' },
+          orderBy: { createdAt: 'desc' },
         },
         _count: {
           select: {
@@ -159,7 +159,7 @@ export class OrganizationService {
     });
 
     if (!org) {
-      throw new Error("Organization not found.");
+      throw new Error('Organization not found.');
     }
 
     return {
@@ -174,11 +174,17 @@ export class OrganizationService {
   static async getActiveOrganization(userId: string) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, name: true, email: true, activeOrgId: true, workspaceName: true },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        activeOrgId: true,
+        workspaceName: true,
+      },
     });
 
     if (!user) {
-      throw new Error("User not found.");
+      throw new Error('User not found.');
     }
 
     const activeOrgId = user.activeOrgId;
@@ -224,7 +230,7 @@ export class OrganizationService {
           },
         },
       },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: 'asc' },
     });
 
     if (firstMembership) {
@@ -244,11 +250,12 @@ export class OrganizationService {
     // If no organization exists at all for this user, auto-provision a default one
     const newOrg = await this.createOrganization(
       {
-        name: user.workspaceName || `${user.name.split(" ")[0]}'s Organization`,
-        description: "Primary workspace for autonomous workflows and browser agents.",
-        defaultAiModel: "Gemini 2.5 Pro Vision",
+        name: user.workspaceName || `${user.name.split(' ')[0]}'s Organization`,
+        description:
+          'Primary workspace for autonomous workflows and browser agents.',
+        defaultAiModel: 'Gemini 2.5 Pro Vision',
       },
-      userId
+      userId,
     );
 
     // Adopt any unlinked workflows created by this user
@@ -269,7 +276,7 @@ export class OrganizationService {
       description: newOrg.description,
       aiInstructions: newOrg.aiInstructions,
       defaultAiModel: newOrg.defaultAiModel,
-      userRole: "owner",
+      userRole: 'owner',
       memberCount: 1,
       workflowCount: 0,
       createdAt: newOrg.createdAt,
@@ -277,10 +284,30 @@ export class OrganizationService {
     };
   }
 
+  // get member with in organization
+
+  static async getOrganizationMembers(organizationId: string) {
+    const membership = await prisma.organizationMember.findMany({
+      where: {
+        organizationId,
+      },
+      include: {
+        user: {
+          select: { id: true, name: true, email: true, role: true },
+        },
+      },
+    });
+
+    return membership;
+  }
+
   /**
    * Switch user's active organization
    */
-  static async switchActiveOrganization(organizationId: string, userId: string) {
+  static async switchActiveOrganization(
+    organizationId: string,
+    userId: string,
+  ) {
     const membership = await prisma.organizationMember.findUnique({
       where: {
         organizationId_userId: {
@@ -291,7 +318,7 @@ export class OrganizationService {
     });
 
     if (!membership) {
-      throw new Error("You are not a member of this organization.");
+      throw new Error('You are not a member of this organization.');
     }
 
     await prisma.user.update({
@@ -307,7 +334,7 @@ export class OrganizationService {
    */
   static async addOrInviteMember(
     input: AddOrInviteMemberInput,
-    requesterUserId: string
+    requesterUserId: string,
   ) {
     const requesterMembership = await prisma.organizationMember.findUnique({
       where: {
@@ -320,13 +347,16 @@ export class OrganizationService {
 
     if (
       !requesterMembership ||
-      (requesterMembership.role !== "owner" && requesterMembership.role !== "admin")
+      (requesterMembership.role !== 'owner' &&
+        requesterMembership.role !== 'admin')
     ) {
-      throw new Error("Only organization owners and admins can add or invite members.");
+      throw new Error(
+        'Only organization owners and admins can add or invite members.',
+      );
     }
 
     const normalizedEmail = input.email.trim().toLowerCase();
-    const role = input.role || "member";
+    const role = input.role || 'member';
 
     // 1. Check if user already exists
     const existingUser = await prisma.user.findUnique({
@@ -345,7 +375,7 @@ export class OrganizationService {
       });
 
       if (alreadyMember) {
-        throw new Error("This user is already a member of this organization.");
+        throw new Error('This user is already a member of this organization.');
       }
 
       // Add directly as member
@@ -379,7 +409,7 @@ export class OrganizationService {
       });
 
       return {
-        type: "added" as const,
+        type: 'added' as const,
         message: `${existingUser.name} (${existingUser.email}) was added as ${role}.`,
         member,
       };
@@ -387,8 +417,8 @@ export class OrganizationService {
 
     // 2. User doesn't exist yet: create or refresh an invitation
     const token = Array.from(crypto.getRandomValues(new Uint8Array(24)))
-      .map((b) => b.toString(16).padStart(2, "0"))
-      .join("");
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
     const invitation = await prisma.organizationInvitation.upsert({
@@ -401,7 +431,7 @@ export class OrganizationService {
       update: {
         role,
         token,
-        status: "pending",
+        status: 'pending',
         expiresAt,
         invitedById: requesterUserId,
       },
@@ -410,17 +440,120 @@ export class OrganizationService {
         email: normalizedEmail,
         role,
         token,
-        status: "pending",
+        status: 'pending',
         expiresAt,
         invitedById: requesterUserId,
       },
     });
 
     return {
-      type: "invited" as const,
+      type: 'invited' as const,
       message: `Invitation generated for ${normalizedEmail} as ${role}.`,
       invitation,
     };
+  }
+
+  /**
+   List My Pending Invitation
+   */
+  static async listMyPendingInvitation(email: string) {
+    const invitations = await prisma.organizationInvitation.findMany({
+      where: {
+        email,
+        status: 'pending',
+      },
+      include: {
+        organization: {
+          select: {
+            id: true,
+            name: true,
+            slug: true,
+            description: true,
+          },
+        },
+        invitedBy: {
+          select: { id: true, name: true, email: true },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    return invitations;
+  }
+
+  // accept pending invitation
+  static async acceptPendingInvitation(invitationId: string, userId: string) {
+    const invitation = await prisma.organizationInvitation.findUnique({
+      where: { id: invitationId },
+    });
+
+    if (!invitation) {
+      throw new Error('Invitation not found.');
+    }
+
+    if (invitation.status !== 'pending') {
+      throw new Error('Invitation is not pending.');
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new Error('User not found.');
+    }
+
+    if (invitation.email !== user.email) {
+      throw new Error('Invitation does not belong to this user.');
+    }
+
+    const membership = await prisma.organizationMember.create({
+      data: {
+        organizationId: invitation.organizationId,
+        userId: user.id,
+        role: invitation.role,
+      },
+    });
+
+    await prisma.organizationInvitation.update({
+      where: { id: invitationId },
+      data: { status: 'accepted' },
+    });
+
+    return membership;
+  }
+
+  // decline pending invitation
+  static async declinePendingInvitation(invitationId: string, userId: string) {
+    const invitation = await prisma.organizationInvitation.findUnique({
+      where: { id: invitationId },
+    });
+
+    if (!invitation) {
+      throw new Error('Invitation not found.');
+    }
+
+    if (invitation.status !== 'pending') {
+      throw new Error('Invitation is not pending.');
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new Error('User not found.');
+    }
+
+    if (invitation.email !== user.email) {
+      throw new Error('Invitation does not belong to this user.');
+    }
+
+    await prisma.organizationInvitation.update({
+      where: { id: invitationId },
+      data: { status: 'declined' },
+    });
+
+    return true;
   }
 
   /**
@@ -429,7 +562,7 @@ export class OrganizationService {
   static async removeMember(
     organizationId: string,
     targetUserId: string,
-    requesterUserId: string
+    requesterUserId: string,
   ) {
     const requesterMembership = await prisma.organizationMember.findUnique({
       where: {
@@ -442,9 +575,12 @@ export class OrganizationService {
 
     if (
       !requesterMembership ||
-      (requesterMembership.role !== "owner" && requesterMembership.role !== "admin")
+      (requesterMembership.role !== 'owner' &&
+        requesterMembership.role !== 'admin')
     ) {
-      throw new Error("Only organization owners and admins can remove members.");
+      throw new Error(
+        'Only organization owners and admins can remove members.',
+      );
     }
 
     const targetMembership = await prisma.organizationMember.findUnique({
@@ -457,20 +593,20 @@ export class OrganizationService {
     });
 
     if (!targetMembership) {
-      throw new Error("Target user is not a member of this organization.");
+      throw new Error('Target user is not a member of this organization.');
     }
 
     // Cannot remove the owner unless requester is another owner
-    if (targetMembership.role === "owner") {
+    if (targetMembership.role === 'owner') {
       const ownerCount = await prisma.organizationMember.count({
         where: {
           organizationId,
-          role: "owner",
+          role: 'owner',
         },
       });
 
       if (ownerCount <= 1) {
-        throw new Error("Cannot remove the sole owner of an organization.");
+        throw new Error('Cannot remove the sole owner of an organization.');
       }
     }
 
@@ -492,8 +628,8 @@ export class OrganizationService {
   static async updateMemberRole(
     organizationId: string,
     targetUserId: string,
-    newRole: "owner" | "admin" | "member",
-    requesterUserId: string
+    newRole: 'owner' | 'admin' | 'member',
+    requesterUserId: string,
   ) {
     const requesterMembership = await prisma.organizationMember.findUnique({
       where: {
@@ -504,8 +640,8 @@ export class OrganizationService {
       },
     });
 
-    if (!requesterMembership || requesterMembership.role !== "owner") {
-      throw new Error("Only organization owners can change member roles.");
+    if (!requesterMembership || requesterMembership.role !== 'owner') {
+      throw new Error('Only organization owners can change member roles.');
     }
 
     const updated = await prisma.organizationMember.update({
@@ -526,7 +662,7 @@ export class OrganizationService {
    */
   static async updateSettings(
     input: UpdateOrganizationInput,
-    requesterUserId: string
+    requesterUserId: string,
   ) {
     const requesterMembership = await prisma.organizationMember.findUnique({
       where: {
@@ -539,16 +675,22 @@ export class OrganizationService {
 
     if (
       !requesterMembership ||
-      (requesterMembership.role !== "owner" && requesterMembership.role !== "admin")
+      (requesterMembership.role !== 'owner' &&
+        requesterMembership.role !== 'admin')
     ) {
-      throw new Error("Only organization owners and admins can update settings.");
+      throw new Error(
+        'Only organization owners and admins can update settings.',
+      );
     }
 
     const data: Prisma.OrganizationUpdateInput = {};
     if (input.name !== undefined) data.name = input.name.trim();
-    if (input.description !== undefined) data.description = input.description.trim();
-    if (input.aiInstructions !== undefined) data.aiInstructions = input.aiInstructions.trim();
-    if (input.defaultAiModel !== undefined) data.defaultAiModel = input.defaultAiModel.trim();
+    if (input.description !== undefined)
+      data.description = input.description.trim();
+    if (input.aiInstructions !== undefined)
+      data.aiInstructions = input.aiInstructions.trim();
+    if (input.defaultAiModel !== undefined)
+      data.defaultAiModel = input.defaultAiModel.trim();
 
     const updated = await prisma.organization.update({
       where: { id: input.organizationId },
