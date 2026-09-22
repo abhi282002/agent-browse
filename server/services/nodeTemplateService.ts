@@ -200,6 +200,40 @@ export class NodeTemplateService {
       }
     }
 
+    // Ensure pre-built Authentication & Sign-in node is available in catalog
+    const hasAuthNode = templates.some(
+      (t) => t.archetype === "authentication" || t.archetype === "auth",
+    );
+    if (!hasAuthNode) {
+      try {
+        const authTpl = await prisma.nodeTemplate.create({
+          data: {
+            title: "Account Authentication",
+            category: "Authentication",
+            badge: "Auth & Sign In",
+            archetype: "authentication",
+            description:
+              "Automates browser authentication by filling credentials (email/username and password) and clicking sign in via Stagehand act.",
+            actionSummary:
+              "Fill email and password credentials, then click the Log In or Sign In button (exclude login with OTP and sign in with OTP)",
+            isPremium: false,
+            defaultMetrics: [
+              { label: "Action", value: "Stagehand Act" },
+              { label: "Security", value: "Masked" },
+            ],
+            defaultLogs: [
+              "Initialized Authentication step",
+              "Injected credentials via Stagehand act",
+              "Submitted sign in and verified destination page",
+            ],
+          },
+        });
+        templates.push(authTpl);
+      } catch {
+        // Continue gracefully if concurrent creation happened
+      }
+    }
+
     return templates.map((t) => {
       const rawMetrics =
         (t.defaultMetrics as unknown as { label: string; value: string }[]) || [];

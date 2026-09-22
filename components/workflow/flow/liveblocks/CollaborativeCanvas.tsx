@@ -51,6 +51,7 @@ export interface CollaborativeCanvasProps {
   saveStatus?: 'idle' | 'saving' | 'saved' | 'error';
   lastSavedAt?: Date | null;
   externalNodeUpdate?: { id: string; data: Partial<WorkflowNodeType['data']> } | null;
+  externalNodesUpdates?: Array<{ id: string; data: Partial<WorkflowNodeType['data']> }> | null;
   externalNodeAdd?: { template: NodeTemplate; customData?: Partial<WorkflowNodeType['data']> } | null;
   externalNodeDeleteId?: string | null;
 }
@@ -66,6 +67,7 @@ export function CollaborativeCanvas({
   saveStatus = 'idle',
   lastSavedAt = null,
   externalNodeUpdate = null,
+  externalNodesUpdates = null,
   externalNodeAdd = null,
   externalNodeDeleteId = null,
 }: CollaborativeCanvasProps) {
@@ -133,6 +135,39 @@ export function CollaborativeCanvas({
 
     onNodesChange([{ type: 'replace', id: updatedNode.id, item: updatedNode }]);
   }, [externalNodeUpdate, onNodesChange]);
+
+  // Handle batch external node updates (e.g. from execution engine step progress)
+  const prevExternalBatchRef = useRef(externalNodesUpdates);
+  useEffect(() => {
+    if (!externalNodesUpdates || externalNodesUpdates.length === 0) return;
+    if (prevExternalBatchRef.current === externalNodesUpdates) return;
+    prevExternalBatchRef.current = externalNodesUpdates;
+
+    const currentNodes = nodesRef.current;
+    if (!currentNodes) return;
+
+    const changes = externalNodesUpdates
+      .map((update) => {
+        const existingNode = currentNodes.find((n) => n.id === update.id);
+        if (!existingNode) return null;
+        return {
+          type: 'replace' as const,
+          id: existingNode.id,
+          item: {
+            ...existingNode,
+            data: {
+              ...existingNode.data,
+              ...update.data,
+            },
+          },
+        };
+      })
+      .filter(Boolean);
+
+    if (changes.length > 0) {
+      onNodesChange(changes as any);
+    }
+  }, [externalNodesUpdates, onNodesChange]);
 
   // Handle external node adds (e.g. from NodeCatalogModal or button)
   useEffect(() => {

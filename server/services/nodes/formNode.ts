@@ -27,8 +27,7 @@ export const executeFormNode: NodeHandler = async (node, ctx) => {
         formRes = await ctx.stagehand.act(formInstruction);
         logs.push('✓ Form submitted on retry');
       } catch (retryErr) {
-        logs.push(`Form note: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`);
-        formRes = { success: true, note: String(retryErr) };
+        throw retryErr;
       }
     } else {
       throw err;

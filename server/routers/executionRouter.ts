@@ -10,9 +10,10 @@ import type { Context } from '@/server/trpc/context';
 const executionInputSchema = z.object({
   workflowId: z.string(),
   workflowName: z.string(),
-  targetUrl: z.string().optional().default(""),
+  targetUrl: z.string().optional().default(''),
   aiModel: z.string().optional(),
   userEmail: z.string().optional(),
+  contextId: z.string().optional(),
   nodes: z.array(
     z.object({
       id: z.string(),
@@ -25,10 +26,80 @@ const executionInputSchema = z.object({
         actionSummary: z.string(),
         url: z.string().optional(),
         archetype: z.string().optional(),
+        selector: z.string().optional(),
+        payload: z.string().optional(),
+        emailProvider: z.enum(['resend', 'nodemailer']).optional(),
+        authEmail: z.string().optional(),
+        authPassword: z.string().optional(),
+        aiModel: z.string().optional(),
+        metrics: z
+          .array(z.object({ label: z.string(), value: z.string() }))
+          .optional(),
       }),
     }),
   ),
+  edges: z
+    .array(
+      z.object({
+        source: z.string(),
+        target: z.string(),
+      }),
+    )
+    .optional(),
 });
+
+// const executeStepInputSchema = z.object({
+//   workflowId: z.string(),
+//   workflowName: z.string(),
+//   sessionId: z.string().optional(),
+//   stepIndex: z.number(),
+//   totalSteps: z.number(),
+//   targetUrl: z.string().optional().default(''),
+//   aiModel: z.string().optional(),
+//   userEmail: z.string().optional(),
+//   node: z.object({
+//     id: z.string(),
+//     data: z
+//       .object({
+//         stepNumber: z.number(),
+//         title: z.string(),
+//         category: z.string(),
+//         badge: z.string(),
+//         description: z.string(),
+//         actionSummary: z.string(),
+//         url: z.string().optional(),
+//         archetype: z.string().optional(),
+//         selector: z.string().optional(),
+//         payload: z.string().optional(),
+//         emailProvider: z.enum(['resend', 'nodemailer']).optional(),
+//         metrics: z
+//           .array(z.object({ label: z.string(), value: z.string() }))
+//           .optional(),
+//       })
+//       .passthrough(),
+//   }),
+//   pipelineOutputs: z.record(z.string(), z.unknown()).optional(),
+//   previousStepOutput: z.record(z.string(), z.unknown()).optional(),
+//   workflowNodes: z
+//     .array(
+//       z.object({
+//         id: z.string(),
+//         data: z
+//           .object({
+//             stepNumber: z.number(),
+//             title: z.string(),
+//             category: z.string(),
+//             badge: z.string(),
+//             description: z.string(),
+//             actionSummary: z.string(),
+//             url: z.string().optional(),
+//             archetype: z.string().optional(),
+//           })
+//           .passthrough(),
+//       }),
+//     )
+//     .optional(),
+// });
 
 type ExecutionInput = z.infer<typeof executionInputSchema>;
 
@@ -59,6 +130,78 @@ export const executionRouter = router({
     .mutation(async ({ input }) => {
       return BrowserbaseService.createSandboxSession(input?.targetUrl);
     }),
+
+  /**
+   * Get or create a persistent Browserbase context for a workflow
+   */
+  getWorkflowContext: publicProcedure
+    .input(z.object({ workflowId: z.string() }))
+    .query(async ({ input }) => {
+      const contextId = await BrowserbaseService.getOrCreateWorkflowContext(
+        input.workflowId,
+      );
+      return { contextId };
+    }),
+
+  /**
+   * Stop an active workflow execution and terminate associated Browserbase session
+   */
+  stopExecution: publicProcedure
+    .input(
+      z.object({
+        sessionId: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ input }) => {
+      if (input.sessionId) {
+        await BrowserbaseService.closeSession(input.sessionId);
+      }
+      return { success: true, message: 'Execution halted.' };
+    }),
+
+  //fetch the pages of a session id
+  fetchSessionPages: publicProcedure
+    .input(
+      z.object({
+        sessionId: z.string(),
+      }),
+    )
+    .query(async ({ input }) => {
+      return BrowserbaseService.fetchSessionPages(input.sessionId);
+    }),
+
+  fetchSessionReplay: publicProcedure
+    .input(
+      z.object({
+        sessionId: z.string(),
+        pageId: z.string(),
+      }),
+    )
+    .query(async ({ input }) => {
+      return BrowserbaseService.fetchSessionReplay(
+        input.sessionId,
+        input.pageId,
+      );
+    }),
+
+  /**
+   * List recent Browserbase sessions for session replay selection
+   */
+  listRecentSessions: publicProcedure
+    .input(
+      z
+        .object({
+          limit: z.number().optional().default(10),
+          status: z
+            .enum(['RUNNING', 'ERROR', 'TIMED_OUT', 'COMPLETED'])
+            .optional(),
+        })
+        .optional(),
+    )
+    .query(async ({ input }) => {
+      return BrowserbaseService.listSessions(input?.limit, input?.status);
+    }),
+
 
   /**
    * Start durable background workflow execution orchestrated by Trigger.dev and Browserbase

@@ -34,11 +34,15 @@ export const executeGroundingNode: NodeHandler = async (node, ctx) => {
           observeRes = (await ctx.stagehand.observe(instruction)) as { data?: unknown };
           logs.push('✓ DOM grounding snapshot captured on retry');
         } catch (retryErr) {
-          logs.push(`Grounding note: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`);
+          throw retryErr;
         }
       } else {
         throw err;
       }
+    }
+
+    if (!observeRes?.data) {
+      throw new Error(`Grounding observe failed to capture interactable elements for: "${instruction}".`);
     }
 
     return {

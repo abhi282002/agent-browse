@@ -11,9 +11,8 @@ export const executeOpenUrlNode: NodeHandler = async (node, ctx) => {
   const logs: string[] = [];
   const targetUrl = pickFirstString(node.data?.url, ctx.targetUrl);
 
-  if (!targetUrl) {
-    logs.push('⚠ No URL provided for Open URL node — skipping navigation');
-    return { logs };
+  if (!targetUrl || !targetUrl.startsWith('http')) {
+    throw new Error('A valid URL is required for Open URL step (e.g. https://example.com).');
   }
 
   logs.push(`Opening URL: ${targetUrl}`);
@@ -23,44 +22,25 @@ export const executeOpenUrlNode: NodeHandler = async (node, ctx) => {
       ?.activePage()
       .catch(() => undefined)) || ctx.page;
 
-  if (pageToUse) {
-    try {
-      await pageToUse.goto(targetUrl, {
-        waitUntil: 'domcontentloaded',
-        timeout: 30000,
-      });
-      // Allow frame settlement and redirects (e.g. geo-redirects like /us)
-      await pageToUse.waitForTimeout(2000).catch(() => {});
-      const finalUrl = await pageToUse.url().catch(() => targetUrl);
-      const title = await pageToUse.title().catch(() => '');
-      logs.push(`✓ Page loaded: ${finalUrl}`);
-      if (title) logs.push(`✓ Page title: "${title}"`);
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      if (
-        /no frame with given id|frame.*not found|target.*not found/i.test(
-          errMsg,
-        )
-      ) {
-        logs.push(
-          '⚠ Frame transition during initial load. Waiting for page to stabilize...',
-        );
-        await pageToUse.waitForTimeout(3000).catch(() => {});
-        const finalUrl = await pageToUse.url().catch(() => targetUrl);
-        const title = await pageToUse.title().catch(() => '');
-        logs.push(`✓ Page loaded after stabilization: ${finalUrl}`);
-        if (title) logs.push(`✓ Page title: "${title}"`);
-      } else {
-        throw err;
-      }
-    }
-  } else {
-    logs.push('Browser page not available — URL recorded for pipeline context');
+  if (!pageToUse) {
+    throw new Error('Browser page context is not available. Cannot navigate.');
   }
+
+  await pageToUse.goto(targetUrl, {
+    waitUntil: 'domcontentloaded',
+    timeout: 30000,
+  });
+
+  await pageToUse.waitForTimeout(1500).catch(() => {});
+  const finalUrl = await pageToUse.url().catch(() => targetUrl);
+  const title = await pageToUse.title().catch(() => '');
+  logs.push(`✓ Page loaded: ${finalUrl}`);
+  if (title) logs.push(`✓ Page title: "${title}"`);
 
   return {
     output: {
-      openedUrl: targetUrl,
+      openedUrl: finalUrl || targetUrl,
+      title: title || undefined,
       loadedAt: new Date().toISOString(),
     },
     logs,

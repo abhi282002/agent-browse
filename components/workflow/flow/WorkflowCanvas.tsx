@@ -48,6 +48,8 @@ interface WorkflowCanvasProps {
   isSaving?: boolean;
   saveStatus?: 'idle' | 'saving' | 'saved' | 'error';
   lastSavedAt?: Date | null;
+  externalNodeUpdate?: { id: string; data: Partial<WorkflowNodeType['data']> } | null;
+  externalNodesUpdates?: Array<{ id: string; data: Partial<WorkflowNodeType['data']> }> | null;
 }
 
 export function WorkflowCanvas({
@@ -60,6 +62,8 @@ export function WorkflowCanvas({
   isSaving = false,
   saveStatus = 'idle',
   lastSavedAt = null,
+  externalNodeUpdate = null,
+  externalNodesUpdates = null,
 }: WorkflowCanvasProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [rfInstance, setRfInstance] = useState<ReactFlowInstance<
@@ -72,6 +76,35 @@ export function WorkflowCanvas({
 
   const prevNodesLengthRef = useRef(initialNodes.length);
   const prevWfIdRef = useRef(workflowId);
+
+  // Sync single external node update
+  React.useEffect(() => {
+    if (!externalNodeUpdate) return;
+    setNodes((currentNodes) =>
+      currentNodes.map((cn) => {
+        if (cn.id !== externalNodeUpdate.id) return cn;
+        return {
+          ...cn,
+          data: { ...cn.data, ...externalNodeUpdate.data },
+        };
+      })
+    );
+  }, [externalNodeUpdate, setNodes]);
+
+  // Sync batch external nodes updates
+  React.useEffect(() => {
+    if (!externalNodesUpdates || externalNodesUpdates.length === 0) return;
+    setNodes((currentNodes) =>
+      currentNodes.map((cn) => {
+        const update = externalNodesUpdates.find((u) => u.id === cn.id);
+        if (!update) return cn;
+        return {
+          ...cn,
+          data: { ...cn.data, ...update.data },
+        };
+      })
+    );
+  }, [externalNodesUpdates, setNodes]);
 
   // Sync nodes when workflow changes, node count changes, or node data updates
   React.useEffect(() => {

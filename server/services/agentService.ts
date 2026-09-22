@@ -162,7 +162,9 @@ Format your output cleanly.`;
           const endpoint = isGroq
             ? 'https://api.groq.com/openai/v1/chat/completions'
             : 'https://api.x.ai/v1/chat/completions';
-          const modelToCall = isGroq ? 'llama-3.1-8b-instant' : resolvedModel;
+          const modelToCall = isGroq
+            ? process.env.GROQ_MODEL || 'openai/gpt-oss-20b'
+            : resolvedModel;
 
           const res = await fetch(endpoint, {
             method: 'POST',
@@ -241,12 +243,11 @@ Format your output cleanly.`;
     targetUrl?: string;
     modelName?: string;
   }): Promise<CategorizedNewsDigestResult> {
-    const { resolvedModel } = this.resolveProvider(input.modelName);
+    const { provider, resolvedModel } = this.resolveProvider(input.modelName);
     const categoriesList =
       input.categories.length > 0
         ? input.categories.join(', ')
         : 'war, sports, crime, ai, politics';
-    const apiKey = process.env.GEMINI_API_KEY?.trim();
 
     let textContent = input.content ? input.content.trim() : '';
 
@@ -285,120 +286,262 @@ Format your output cleanly.`;
       );
     }
 
-    if (!apiKey) {
-      throw new Error(
-        `GEMINI_API_KEY is missing in environment. Real cloud AI inference requires a valid GEMINI_API_KEY.`,
-      );
+    const jsonExtractionInstructions = `Analyze the following news webpage content and extract/summarize stories specifically for each of these categories: [${categoriesList}].
+
+For EACH category found in the text, extract and summarize ALL the distinct news stories provided (up to 3-5 stories per category). Do not limit each category to just one single story. Format the result strictly as a valid JSON object containing a "stories" array:
+{
+  "stories": [
+    {
+      "category": "<Full formal category name, e.g. AI & Technology, World & Defense, Sports, Politics & National, Crime & Law, Technology, Health, Culture, Arts, Travel, Earth>",
+      "heading": "<Concise, punchy news headline>",
+      "subheading": "<1 sentence contextual deck / subheading>",
+      "text": "<Concise summary paragraph. Avoid raw unescaped newline characters in the text string>",
+      "author": "<Author or reporter name, e.g. Staff Reporter / News Desk>",
+      "publishedDate": "<Publication date or timestamp>",
+      "keyPoints": [
+        "<Crucial fact or event 1>",
+        "<Crucial fact or event 2>",
+        "<Crucial fact or event 3>"
+      ],
+      "url": "<Original article URL if present in the text>"
     }
+  ]
+}
 
-    try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${resolvedModel}:generateContent?key=${apiKey}`;
-      const prompt = `You are an elite news editor and autonomous intelligence agent.
-Analyze the following news webpage content and extract/summarize stories specifically for each of these categories: [${categoriesList}].
+Ensure all JSON strings are valid and escaped. Do not use raw unescaped newlines inside strings. Return only valid JSON.`;
 
-For EACH category found in the text, extract and summarize ALL the distinct news stories provided (up to 3-5 stories per category). Do not limit each category to just one single story. Format the result strictly as a JSON array of objects where each story has these exact keys:
-[
-  {
-    "category": "<Full formal category name, e.g. AI & Technology, World & Defense, Sports, Politics & National, Crime & Law, Technology, Health, Culture, Arts, Travel, Earth>",
-    "heading": "<Concise, punchy news headline>",
-    "subheading": "<1 sentence contextual deck / subheading>",
-    "text": "<2-3 paragraph comprehensive, detailed summary of the event>",
-    "author": "<Author or reporter name, e.g. Staff Reporter / News Desk>",
-    "publishedDate": "<Publication date or timestamp>",
-    "keyPoints": [
-      "<Crucial fact or event 1>",
-      "<Crucial fact or event 2>",
-      "<Crucial fact or event 3>"
-    ],
-    "url": "<Original article URL if present in the text>"
-  }
-]
+    const parseNewsJson = (raw: string): CategorizedNewsItem[] => {
+      const cleanRaw = (str: string) =>
+        str
+          // Strip <think>...</think> reasoning blocks emitted by Groq thinking models (e.g. qwen/qwen3.8-27b)
+          .replace(/<think>[\s\S]*?<\/think>/gi, '')
+          .replace(/```json/gi, '')
+          .replace(/```/g, '')
+          .trim();
 
-Do not include markdown code block formatting or backticks around the JSON. Return only the raw JSON array.
+      const sanitizeJsonString = (s: string) => {
+        return s.replace(/[\u0000-\u001F]+/g, (m) =>
+          m === '\t' ? ' ' : m === '\n' || m === '\r' ? ' ' : '',
+        );
+      };
+
+      const tryParse = (text: string): unknown => {
+        try {
+          return JSON.parse(text);
+        } catch {
+          try {
+            return JSON.parse(sanitizeJsonString(text));
+          } catch {
+            return null;
+          }
+        }
+      };
+
+      const cleaned = cleanRaw(raw);
+      let parsed = tryParse(cleaned);
+
+      if (!parsed) {
+        const objMatch = cleaned.match(/\{[\s\S]*\}/);
+        if (objMatch) {
+          parsed = tryParse(objMatch[0]);
+        }
+      }
+
+      if (!parsed) {
+        const arrayMatch = cleaned.match(/\[\s*\{[\s\S]*\}\s*\]/);
+        if (arrayMatch) {
+          parsed = tryParse(arrayMatch[0]);
+        }
+      }
+
+      if (parsed && typeof parsed === 'object') {
+        if (Array.isArray(parsed)) {
+          return parsed as CategorizedNewsItem[];
+        }
+        if (Array.isArray((parsed as { stories?: unknown }).stories)) {
+          return (parsed as { stories: CategorizedNewsItem[] }).stories;
+        }
+        if (Array.isArray((parsed as { items?: unknown }).items)) {
+          return (parsed as { items: CategorizedNewsItem[] }).items;
+        }
+      }
+      return [];
+    };
+
+    const packageResult = (
+      items: CategorizedNewsItem[],
+      usedProvider: 'gemini' | 'grok',
+      usedModel: string,
+    ): CategorizedNewsDigestResult => {
+      for (const it of items) {
+        if (!it.url && input.targetUrl) {
+          it.url = input.targetUrl;
+        }
+      }
+
+      const formattedBriefing = items
+        .map(
+          (item) =>
+            `[${item.category.toUpperCase()}]\nheading: ${item.heading}\nsubheading: ${item.subheading}\ntext: ${item.text}`,
+        )
+        .join('\n\n');
+
+      return {
+        items,
+        formattedBriefing,
+        provider: usedProvider,
+        modelUsed: usedModel,
+      };
+    };
+
+    // 1. Google Gemini Provider
+    if (provider === 'gemini') {
+      const apiKey = process.env.GEMINI_API_KEY?.trim();
+      if (!apiKey) {
+        throw new Error(
+          `GEMINI_API_KEY is missing in environment. Real cloud AI inference requires a valid GEMINI_API_KEY.`,
+        );
+      }
+
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${resolvedModel}:generateContent?key=${apiKey}`;
+        const prompt = `You are an elite news editor and autonomous intelligence agent.
+${jsonExtractionInstructions}
 
 Webpage Content:
 """
 ${textContent.slice(0, 16000)}
 """`;
 
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: {
-            temperature: 0.2,
-            responseMimeType: 'application/json',
-          },
-        }),
-      });
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+              temperature: 0.2,
+              responseMimeType: 'application/json',
+            },
+          }),
+        });
 
-      if (!res.ok) {
-        const errBody = await res.text();
+        if (!res.ok) {
+          const errBody = await res.text();
+          throw new Error(
+            `Gemini API returned status ${res.status} (${res.statusText}): ${errBody.slice(0, 300)}`,
+          );
+        }
+
+        const data = (await res.json()) as {
+          candidates?: Array<{
+            content?: { parts?: Array<{ text?: string }> };
+          }>;
+        };
+
+        const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
+        const items = parseNewsJson(rawText);
+
+        if (Array.isArray(items) && items.length > 0) {
+          return packageResult(items, 'gemini', resolvedModel);
+        } else {
+          throw new Error(
+            `Gemini responded successfully but returned an empty array of news stories. Raw response preview: ${rawText.slice(0, 200)}`,
+          );
+        }
+      } catch (err) {
+        console.error(
+          `[AgentService] Categorized news digest generation failed via Gemini (${resolvedModel}):`,
+          err,
+        );
         throw new Error(
-          `Gemini API returned status ${res.status} (${res.statusText}): ${errBody.slice(0, 300)}`,
+          `Failed to generate categorized news digest via ${resolvedModel}: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
+    }
 
-      const data = (await res.json()) as {
-        candidates?: Array<{
-          content?: { parts?: Array<{ text?: string }> };
-        }>;
-      };
-
-      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text || '';
-      let items: CategorizedNewsItem[] = [];
+    // 2. xAI Grok / Groq Provider
+    if (provider === 'grok') {
+      const apiKey = process.env.GROK_API_KEY?.trim();
+      if (!apiKey) {
+        throw new Error(
+          'GROK_API_KEY is missing in environment. Live AI inference via Grok requires a valid GROK_API_KEY (or Groq key).',
+        );
+      }
 
       try {
-        items = JSON.parse(rawText);
-      } catch {
-        const jsonMatch = rawText.match(/\[\s*\{[\s\S]*\}\s*\]/);
-        if (jsonMatch) {
-          items = JSON.parse(jsonMatch[0]);
-        } else {
-          const cleanJson = rawText
-            .replace(/```json/g, '')
-            .replace(/```/g, '')
-            .trim();
-          items = JSON.parse(cleanJson);
-        }
-      }
+        const isGroq = apiKey.startsWith('gsk_');
+        const endpoint = isGroq
+          ? 'https://api.groq.com/openai/v1/chat/completions'
+          : 'https://api.x.ai/v1/chat/completions';
+        const modelToCall = isGroq
+          ? process.env.GROQ_MODEL || 'qwen/qwen3.8-27b'
+          : resolvedModel;
 
-      if (Array.isArray(items) && items.length > 0) {
-        // Normalize URLs if not present on individual items
-        for (const it of items) {
-          if (!it.url && input.targetUrl) {
-            it.url = input.targetUrl;
-          }
-        }
-
-        const formattedBriefing = items
-          .map(
-            (item) =>
-              `[${item.category.toUpperCase()}]\nheading: ${item.heading}\nsubheading: ${item.subheading}\ntext: ${item.text}`,
-          )
-          .join('\n\n');
-
-        return {
-          items,
-          formattedBriefing,
-          provider: 'gemini',
-          modelUsed: resolvedModel,
+        const requestBody: Record<string, unknown> = {
+          model: modelToCall,
+          messages: [
+            {
+              role: 'system',
+              content:
+                'You are an elite news editor and autonomous intelligence agent. You must output a JSON object containing a "stories" array of categorized news items.',
+            },
+            {
+              role: 'user',
+              content: `${jsonExtractionInstructions}\n\nWebpage Content:\n"""\n${textContent.slice(0, 16000)}\n"""`,
+            },
+          ],
+          temperature: 0.2,
+          max_tokens: 4096,
         };
-      } else {
+
+        if (!isGroq) {
+          requestBody.response_format = { type: 'json_object' };
+        }
+
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify(requestBody),
+        });
+
+        if (!res.ok) {
+          const errBody = await res.text();
+          throw new Error(
+            `Grok API returned status ${res.status} (${res.statusText}): ${errBody.slice(0, 300)}`,
+          );
+        }
+
+        const data = (await res.json()) as {
+          choices?: Array<{ message?: { content?: string } }>;
+        };
+
+        const rawText = data.choices?.[0]?.message?.content || '';
+        const items = parseNewsJson(rawText);
+
+        if (Array.isArray(items) && items.length > 0) {
+          return packageResult(items, 'grok', modelToCall);
+        } else {
+          throw new Error(
+            `Grok responded successfully but returned an empty array of news stories. Raw response preview: ${rawText.slice(0, 200)}`,
+          );
+        }
+      } catch (err) {
+        console.error(
+          `[AgentService] Categorized news digest generation failed via Grok (${resolvedModel}):`,
+          err,
+        );
         throw new Error(
-          `Gemini responded successfully but returned an empty array of news stories. Raw response preview: ${rawText.slice(0, 200)}`,
+          `Failed to generate categorized news digest via Grok (${resolvedModel}): ${err instanceof Error ? err.message : String(err)}`,
         );
       }
-    } catch (err) {
-      console.error(
-        `[AgentService] Categorized news digest generation failed via Gemini (${resolvedModel}):`,
-        err,
-      );
-      throw new Error(
-        `Failed to generate categorized news digest via ${resolvedModel}: ${err instanceof Error ? err.message : String(err)}`,
-      );
     }
+
+    throw new Error(
+      `Unsupported AI provider: ${provider}. Please specify a valid provider or model (Gemini or Grok).`,
+    );
   }
 }
 

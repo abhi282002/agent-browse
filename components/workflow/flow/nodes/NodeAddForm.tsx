@@ -28,6 +28,8 @@ const ARCHETYPE_COLORS: Record<string, string> = {
   news_gather: 'bg-rose-500/10 text-rose-700 border-rose-200',
   news_summary: 'bg-pink-500/10 text-pink-700 border-pink-200',
   email: 'bg-teal-500/10 text-teal-700 border-teal-200',
+  authentication: 'bg-amber-500/10 text-amber-800 border-amber-300',
+  auth: 'bg-amber-500/10 text-amber-800 border-amber-300',
 };
 
 export function NodeAddForm({ template, onAdd, onCancel }: NodeAddFormProps) {

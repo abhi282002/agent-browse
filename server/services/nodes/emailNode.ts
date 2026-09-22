@@ -138,51 +138,15 @@ export const executeEmailNode: NodeHandler = async (node, ctx) => {
     rawDataPreview,
   });
 
-  let sendRes;
-  try {
-    sendRes = await EmailService.sendEmail(
-      {
-        to: recipient,
-        subject,
-        html,
-        text: bodyContent,
-      },
-      providerType,
-    );
-    if (sendRes.mode === 'simulation') {
-      const liveAlt = providerType === 'resend' ? 'nodemailer' : 'resend';
-      logs.push(
-        `Notice: ${providerLabel} returned simulated status. Dispatching live via ${liveAlt}...`,
-      );
-      const liveRes = await EmailService.sendEmail(
-        {
-          to: recipient,
-          subject,
-          html,
-          text: bodyContent,
-        },
-        liveAlt,
-      );
-      if (liveRes.mode === 'live') {
-        sendRes = liveRes;
-      }
-    }
-  } catch (err) {
-    const fallbackProvider =
-      providerType === 'resend' ? 'nodemailer' : 'resend';
-    logs.push(
-      `Primary dispatch via ${providerLabel} encountered an issue: ${err instanceof Error ? err.message : String(err)}. Retrying live delivery via ${fallbackProvider}...`,
-    );
-    sendRes = await EmailService.sendEmail(
-      {
-        to: recipient,
-        subject,
-        html,
-        text: bodyContent,
-      },
-      fallbackProvider,
-    );
-  }
+  const sendRes = await EmailService.sendEmail(
+    {
+      to: recipient,
+      subject,
+      html,
+      text: bodyContent,
+    },
+    providerType,
+  );
 
   logs.push(
     `Email dispatched successfully via ${sendRes.provider} (${sendRes.mode}): Message ID = ${sendRes.id}`,

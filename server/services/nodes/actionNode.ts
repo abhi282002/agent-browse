@@ -36,11 +36,7 @@ export const executeActionNode: NodeHandler = async (node, ctx) => {
         actResult = await ctx.stagehand.act(actInstruction);
         logs.push('✓ Action succeeded on retry');
       } catch (retryErr: unknown) {
-        const retryMsg =
-          retryErr instanceof Error ? retryErr.message : String(retryErr);
-        // If it still reports frame error, navigation likely completed and detached the previous execution frame
-        logs.push(`Action completed with frame navigation note: ${retryMsg}`);
-        actResult = { status: 'completed_navigation', note: retryMsg };
+        throw retryErr;
       }
     } else {
       throw err;
@@ -104,12 +100,10 @@ export const executeActionNode: NodeHandler = async (node, ctx) => {
             logs.push('✓ Information gathered successfully on retry');
           }
         } catch (retryErr) {
-          logs.push(
-            `Note: Action extract fallback: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`,
-          );
+          throw retryErr;
         }
       } else {
-        logs.push(`Note: Action extract fallback: ${extractErrMsg}`);
+        throw err;
       }
     }
   }

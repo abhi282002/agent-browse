@@ -8,7 +8,11 @@ import { AgentService } from '../agentService';
  */
 export const executeSummarizationNode: NodeHandler = async (node, ctx) => {
   const logs: string[] = [];
-  const modelToUse = ctx.aiModel || 'Gemini 2.5 Pro Vision';
+  const modelToUse =
+    (node.data?.aiModel as string) ||
+    (node.data?.model as string) ||
+    ctx.aiModel ||
+    'Gemini 2.5 Pro Vision';
   const instruction =
     node.data.actionSummary ||
     node.data.description ||
@@ -81,6 +85,10 @@ export const executeSummarizationNode: NodeHandler = async (node, ctx) => {
   const combinedContent = extractedContext
     ? `Extracted Data from previous step:\n${extractedContext}\n\nWebpage text:\n${pageText.slice(0, 8000)}`
     : pageText;
+
+  if (!combinedContent || combinedContent.trim().length === 0) {
+    throw new Error('No page content or extraction data available for summarization.');
+  }
 
   logs.push(`Dispatching web summarization to ${modelToUse}...`);
   const agentResult = await AgentService.summarizeWebPage({

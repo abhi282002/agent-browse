@@ -40,20 +40,10 @@ export class TriggerDevService {
           err,
         );
       }
+    } else {
+      //throw the error
+      throw new Error('Trigger.dev is not configured');
     }
-
-    const result = await BrowserbaseService.executeWorkflow(payload);
-
-    console.log('[TriggerDevService] Direct execution result:', result);
-
-    return {
-      runId: `local-${Date.now().toString(36)}`,
-      status: result.status,
-      mode: 'direct' as const,
-      isBackground: false,
-      result,
-      message: 'Executed directly via Browserbase & Stagehand.',
-    };
   }
 
   static async getRunStatus(runId: string) {
@@ -62,6 +52,7 @@ export class TriggerDevService {
         id: runId,
         status: 'COMPLETED',
         output: null,
+        metadata: null,
       };
     }
 
@@ -74,11 +65,16 @@ export class TriggerDevService {
         error: run.error,
         startedAt: run.startedAt,
         finishedAt: run.finishedAt,
+        metadata: run.metadata || null,
       };
     } catch (err) {
       return {
         id: runId,
-        status: 'UNKNOWN',
+        status: 'UNKNOWN' as const,
+        output: null,
+        metadata: null,
+        startedAt: undefined,
+        finishedAt: undefined,
         error: err instanceof Error ? err.message : String(err),
       };
     }
@@ -94,10 +90,10 @@ export class TriggerDevService {
    */
   private static normalizeTriggerTimezone(tz: string): string {
     const aliases: Record<string, string> = {
-      'Asia/Kolkata':        'Asia/Calcutta',
-      'Asia/Kathmandu':      'Asia/Katmandu',
+      'Asia/Kolkata': 'Asia/Calcutta',
+      'Asia/Kathmandu': 'Asia/Katmandu',
       'America/Indiana/Indianapolis': 'America/Indianapolis',
-      'Pacific/Honolulu':    'US/Hawaii',
+      'Pacific/Honolulu': 'US/Hawaii',
     };
     return aliases[tz] ?? tz;
   }

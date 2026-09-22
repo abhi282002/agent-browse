@@ -14,7 +14,9 @@ export type NodeArchetype =
   | "news_extraction"
   | "news_summary"
   | "email"
-  | "open_url";
+  | "open_url"
+  | "authentication"
+  | "auth";
 
 export type EmailProviderType = 'resend' | 'nodemailer';
 
@@ -31,10 +33,15 @@ export interface WorkflowNodeData extends Record<string, unknown> {
   logLines: string[];
   archetype?: NodeArchetype;
   emailProvider?: EmailProviderType;
+  aiModel?: string;
   selector?: string;
   payload?: string;
+  authEmail?: string;
+  authPassword?: string;
   timeoutMs?: number;
   isPremium?: boolean;
+  durationMs?: number;
+  errorMessage?: string;
 }
 
 export type WorkflowNodeType = Node<WorkflowNodeData, "workflowStep">;

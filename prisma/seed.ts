@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { DEFAULT_WORKFLOW_SEEDS } from "../server/services/workflowSeedData";
 
 const prisma = new PrismaClient();
 
@@ -46,7 +47,6 @@ async function main() {
   console.log("-----------------------------------------");
 
   // Seed default workflow blueprints into PostgreSQL
-  const { DEFAULT_WORKFLOW_SEEDS } = await import("../server/services/workflowSeedData");
   for (const wf of DEFAULT_WORKFLOW_SEEDS) {
     await prisma.workflow.upsert({
       where: { id: wf.id },

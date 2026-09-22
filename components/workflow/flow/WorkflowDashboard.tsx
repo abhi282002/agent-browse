@@ -14,17 +14,13 @@ import { NodeConfigDrawer } from './nodes/NodeConfigDrawer';
 import { AdminNodeManagerModal } from './admin/AdminNodeManagerModal';
 import { EditWorkflowModal } from './modals/EditWorkflowModal';
 import { CreateWorkflowView } from './views/CreateWorkflowView';
+import { EmptyWorkflowState } from './views/EmptyWorkflowState';
+import { WorkflowConsoleToggleButton } from './execution/WorkflowConsoleToggleButton';
+import { WorkflowRunButton } from './execution/WorkflowRunButton';
+import { WorkflowExecutionErrorAlert } from './execution/WorkflowExecutionErrorAlert';
+import { WorkflowScheduleSheet } from './execution/WorkflowScheduleSheet';
 import { Button } from '@/components/ui/button';
-import { BotIcon, SparklesIcon, PlayIcon } from '@/components/ui/icons';
-import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetDescription,
-} from '@/components/ui/sheet';
-import { ScheduleCard } from './execution/ScheduleCard';
+import { BotIcon, SparklesIcon } from '@/components/ui/icons';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,8 +30,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { AlertTriangle, X } from 'lucide-react';
-import type { NodeTemplate, WorkflowNodeType } from './types';
+import { AlertTriangle } from 'lucide-react';
+import { useEffect, useCallback } from 'react';
+import { WorkflowConsoleLog } from './execution/console';
+import type { NodeTemplate, WorkflowNodeType, StepNodeStatus } from './types';
 
 interface WorkflowDashboardProps {
   initialCreateMode?: boolean;
@@ -44,38 +42,7 @@ interface WorkflowDashboardProps {
 export function WorkflowDashboard({
   initialCreateMode = false,
 }: WorkflowDashboardProps) {
-  const {
-    workflows,
-    activeWorkflow,
-    selectedNode,
-    isRunning,
-    selectWorkflow,
-    createWorkflow,
-    addNode,
-    updateNode,
-    deleteNode,
-    updateWorkflowDetails,
-    setSelectedNode,
-    runPipeline,
-    isSyncing,
-    saveWorkflow,
-    updateGraph,
-    saveStatus,
-    lastSavedAt,
-    isSaving,
-    executionError,
-    clearExecutionError,
-    isAdmin,
-  } = useWorkflowManager();
-
-  const [isCreateView, setIsCreateView] = useState(initialCreateMode);
-  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
-  const [isConfigDrawerOpen, setIsConfigDrawerOpen] = useState(false);
-  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isScheduleSheetOpen, setIsScheduleSheetOpen] = useState(false);
-
-  // Real-time synchronization state for external drawer/palette actions
+  // Real-time synchronization state for external drawer/palette actions & live execution
   const [externalNodeUpdate, setExternalNodeUpdate] = useState<{
     id: string;
     data: Partial<WorkflowNodeType['data']>;
@@ -85,6 +52,76 @@ export function WorkflowDashboard({
     customData?: Partial<WorkflowNodeType['data']>;
   } | null>(null);
   const [externalNodeDeleteId, setExternalNodeDeleteId] = useState<string | null>(null);
+
+  const [externalNodesUpdates, setExternalNodesUpdates] = useState<Array<{
+    id: string;
+    data: Partial<WorkflowNodeType['data']>;
+  }> | null>(null);
+
+  // Synchronize canvas node status (running / completed / failed) in real time
+  const handleStepStatusChange = useCallback(
+    (nodeId: string, status: StepNodeStatus, logs?: string[]) => {
+      setExternalNodeUpdate({
+        id: nodeId,
+        data: {
+          status,
+          ...(logs ? { logLines: logs } : {}),
+        },
+      });
+    },
+    [],
+  );
+
+  const handleNodesBatchUpdate = useCallback(
+    (updates: Array<{ id: string; data: Partial<WorkflowNodeType['data']> }>) => {
+      setExternalNodesUpdates(updates);
+    },
+    [],
+  );
+
+  const {
+    workflows,
+    activeWorkflow,
+    selectedNode,
+    isRunning,
+    executionResult,
+    selectWorkflow,
+    createWorkflow,
+    addNode,
+    updateNode,
+    deleteNode,
+    updateWorkflowDetails,
+    setSelectedNode,
+    runPipeline,
+    stopPipeline,
+    isSyncing,
+    saveWorkflow,
+    updateGraph,
+    saveStatus,
+    lastSavedAt,
+    isSaving,
+    executionError,
+    clearExecutionError,
+    isAdmin,
+  } = useWorkflowManager({
+    onStepStatusChange: handleStepStatusChange,
+    onNodesBatchUpdate: handleNodesBatchUpdate,
+  });
+
+  const [isCreateView, setIsCreateView] = useState(initialCreateMode);
+  const [isCatalogOpen, setIsCatalogOpen] = useState(false);
+  const [isConfigDrawerOpen, setIsConfigDrawerOpen] = useState(false);
+  const [isAdminModalOpen, setIsAdminModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isScheduleSheetOpen, setIsScheduleSheetOpen] = useState(false);
+  const [isConsoleOpen, setIsConsoleOpen] = useState(false);
+
+  // Automatically open the console when a workflow starts running
+  useEffect(() => {
+    if (isRunning) {
+      setIsConsoleOpen(true);
+    }
+  }, [isRunning]);
 
   // Adapter: NodePaletteSidebar passes overrides (url, actionSummary, title)
   const handleAddNodeWithOverrides = (
@@ -115,28 +152,7 @@ export function WorkflowDashboard({
 
   // If no workflow exists in DB yet
   if (!activeWorkflow) {
-    return (
-      <div className="w-full flex flex-col items-center justify-center rounded-2xl border border-dashed border-zinc-300 bg-white p-12 text-center shadow-xs">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-900 text-white shadow-xs mb-4">
-          <BotIcon className="h-6 w-6" />
-        </div>
-        <h3 className="text-lg font-bold text-zinc-900">
-          No Workflows in Database
-        </h3>
-        <p className="mt-1 text-sm text-zinc-500 max-w-md">
-          Create your first autonomous browser agent workflow to start
-          automating tasks with Chromium and AI vision.
-        </p>
-        <Button
-          onClick={() => setIsCreateView(true)}
-          className="mt-5 gap-2"
-          size="sm"
-        >
-          <SparklesIcon className="h-3.5 w-3.5 text-emerald-400" />
-          <span>+ Create New Workflow</span>
-        </Button>
-      </div>
-    );
+    return <EmptyWorkflowState onCreateWorkflow={() => setIsCreateView(true)} />;
   }
 
   return (
@@ -284,55 +300,30 @@ export function WorkflowDashboard({
                 <span className="hidden sm:inline">New</span>
               </button>
 
-              {/* Run Workflow Button */}
-              <button
-                type="button"
-                onClick={() => runPipeline()}
-                disabled={isRunning}
-                className={`flex items-center gap-1.5 rounded-xl px-4 py-1.5 text-xs font-bold shadow-sm transition-all cursor-pointer ${
-                  isRunning
-                    ? "bg-amber-600 text-white cursor-not-allowed"
-                    : "bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white shadow-emerald-600/20"
-                } disabled:opacity-80`}
-                title="Execute workflow with autonomous browser agent"
-              >
-                {isRunning ? (
-                  <>
-                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
-                    <span>Running Agent...</span>
-                  </>
-                ) : (
-                  <>
-                    <PlayIcon className="h-3.5 w-3.5 fill-current" />
-                    <span>Run Workflow</span>
-                  </>
-                )}
-              </button>
+              {/* Toggle Execution Console */}
+              <WorkflowConsoleToggleButton
+                isOpen={isConsoleOpen}
+                onToggle={() => setIsConsoleOpen((prev) => !prev)}
+                isRunning={isRunning}
+              />
+
+              {/* Run/Stop Workflow Button */}
+              <WorkflowRunButton
+                isRunning={isRunning}
+                onRun={() => {
+                  setIsConsoleOpen(true);
+                  runPipeline();
+                }}
+                onStop={stopPipeline}
+              />
             </div>
           </div>
 
-          {/* Execution Error Notice using shadcn Alert */}
-          {executionError && (
-            <div className="px-6 py-2.5 bg-rose-50/50 border-b border-rose-200/60">
-              <Alert variant="destructive" className="flex items-center justify-between border-rose-200 bg-white shadow-2xs py-2 px-3">
-                <div className="flex items-center gap-2.5">
-                  <AlertTriangle className="h-4 w-4 shrink-0 text-rose-600" />
-                  <div>
-                    <AlertTitle className="text-xs font-bold text-rose-900">Execution Notice</AlertTitle>
-                    <AlertDescription className="text-xs text-rose-700">{executionError}</AlertDescription>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={clearExecutionError}
-                  className="p-1 hover:bg-rose-50 rounded text-rose-500 hover:text-rose-700 cursor-pointer transition-colors"
-                  title="Dismiss notification"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </Alert>
-            </div>
-          )}
+          {/* Execution Error Notice */}
+          <WorkflowExecutionErrorAlert
+            error={executionError}
+            onDismiss={clearExecutionError}
+          />
 
           {/* Collaborative Liveblocks React Flow Canvas */}
           <LiveblocksWorkflowProvider
@@ -352,6 +343,8 @@ export function WorkflowDashboard({
                 isSaving={isSaving}
                 saveStatus={saveStatus}
                 lastSavedAt={lastSavedAt}
+                externalNodeUpdate={externalNodeUpdate}
+                externalNodesUpdates={externalNodesUpdates}
               />
             }
           >
@@ -369,10 +362,23 @@ export function WorkflowDashboard({
               saveStatus={saveStatus}
               lastSavedAt={lastSavedAt}
               externalNodeUpdate={externalNodeUpdate}
+              externalNodesUpdates={externalNodesUpdates}
               externalNodeAdd={externalNodeAdd}
               externalNodeDeleteId={externalNodeDeleteId}
             />
           </LiveblocksWorkflowProvider>
+
+          {/* Real-time Execution Console & Browserbase Session Relay */}
+          {isConsoleOpen && (
+            <WorkflowConsoleLog
+              workflow={activeWorkflow}
+              isRunning={isRunning}
+              executionResult={executionResult}
+              isOpen={isConsoleOpen}
+              onClose={() => setIsConsoleOpen(false)}
+              onRunWorkflow={() => runPipeline()}
+            />
+          )}
         </div>
       </div>
 
@@ -385,22 +391,12 @@ export function WorkflowDashboard({
       />
 
       {/* Schedule Sheet */}
-      <Sheet open={isScheduleSheetOpen} onOpenChange={setIsScheduleSheetOpen}>
-        <SheetContent side="right" className="w-full sm:max-w-sm p-0 flex flex-col">
-          <SheetHeader className="px-5 pt-5 pb-4 border-b border-zinc-100">
-            <SheetTitle className="text-sm font-bold text-zinc-900 flex items-center gap-2">
-              <span>⏰</span>
-              <span>Workflow Schedule</span>
-            </SheetTitle>
-            <SheetDescription className="text-xs text-zinc-500">
-              Automate <span className="font-medium text-zinc-700">{activeWorkflow.name}</span> to run on a recurring schedule via Trigger.dev.
-            </SheetDescription>
-          </SheetHeader>
-          <div className="flex-1 overflow-y-auto px-4 py-4">
-            <ScheduleCard workflowId={activeWorkflow.id} />
-          </div>
-        </SheetContent>
-      </Sheet>
+      <WorkflowScheduleSheet
+        isOpen={isScheduleSheetOpen}
+        onOpenChange={setIsScheduleSheetOpen}
+        workflowId={activeWorkflow.id}
+        workflowName={activeWorkflow.name}
+      />
 
       {/* Node Catalog Modal for Customers */}
       <NodeCatalogModal

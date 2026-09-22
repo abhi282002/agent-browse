@@ -16,6 +16,7 @@ import { executeNewsGatherNode } from './nodes/newsGatherNode';
 import { executeNewsSummarizationNode } from './nodes/newsSummarizationNode';
 import { executeEmailNode } from './nodes/emailNode';
 import { executeOpenUrlNode } from './nodes/openUrlNode';
+import { executeAuthenticationNode } from './nodes/authenticationNode';
 import { pickFirstString } from './nodes/nodeUtils';
 
 export type {
@@ -38,6 +39,7 @@ export {
   executeNewsSummarizationNode,
   executeEmailNode,
   executeOpenUrlNode,
+  executeAuthenticationNode,
 };
 
 /**
@@ -53,9 +55,10 @@ export const NODE_REGISTRY: Record<NodeArchetype | string, NodeHandler> = {
   webhook: executeWebhookNode,
   summarization: executeSummarizationNode,
   news_gather: executeNewsGatherNode,
-  news_extraction: executeNewsGatherNode,
   news_summary: executeNewsSummarizationNode,
   email: executeEmailNode,
+  authentication: executeAuthenticationNode,
+  auth: executeAuthenticationNode,
 };
 
 /**

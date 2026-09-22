@@ -29,6 +29,8 @@ const ARCHETYPE_ICONS: Record<string, string> = {
   news_extraction: "📰",
   news_summary: "📋",
   email: "✉️",
+  authentication: "🔐",
+  auth: "🔐",
 };
 
 // Pill colors for the archetype badge (unselected state)
@@ -45,6 +47,8 @@ const ARCHETYPE_PILL: Record<string, string> = {
   news_extraction: "bg-rose-50 border-rose-200 text-rose-700",
   news_summary: "bg-pink-50 border-pink-200 text-pink-700",
   email: "bg-teal-50 border-teal-200 text-teal-700",
+  authentication: "bg-amber-50 border-amber-200 text-amber-800",
+  auth: "bg-amber-50 border-amber-200 text-amber-800",
 };
 
 // Left accent bar color per archetype
@@ -61,6 +65,8 @@ const ARCHETYPE_ACCENT: Record<string, string> = {
   news_extraction: "border-l-rose-400",
   news_summary: "border-l-pink-400",
   email: "border-l-teal-400",
+  authentication: "border-l-amber-500",
+  auth: "border-l-amber-500",
 };
 
 interface NodePaletteSidebarProps {

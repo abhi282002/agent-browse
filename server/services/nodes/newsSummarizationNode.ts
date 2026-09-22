@@ -14,7 +14,11 @@ import { pickFirstString } from './nodeUtils';
  */
 export const executeNewsSummarizationNode: NodeHandler = async (node, ctx) => {
   const logs: string[] = [];
-  const modelToUse = ctx.aiModel || 'Gemini 2.5 Flash';
+  const modelToUse =
+    (node.data?.aiModel as string) ||
+    (node.data?.model as string) ||
+    ctx.aiModel ||
+    'Gemini 2.5 Flash';
 
   // Resolve target categories using NEWS_CATEGORIES_CONFIG as the single source of truth
   const { fullCategoriesList } = resolveNewsCategories(node.data.payload);
@@ -88,58 +92,19 @@ export const executeNewsSummarizationNode: NodeHandler = async (node, ctx) => {
       `Gathering real-time multi-category news stories from: ${resolvedTargetUrl}...`,
     );
 
-    try {
-      const gatherRes = await executeNewsGatherNode(node, {
-        ...ctx,
-        targetUrl: resolvedTargetUrl,
-      });
-      logs.push(...gatherRes.logs);
-      if (
-        typeof gatherRes.output?.gatheredDocument === 'string' &&
-        gatherRes.output.gatheredDocument
-      ) {
-        gatheredContent = gatherRes.output.gatheredDocument;
-      }
-      if (gatherRes.output?.articles) {
-        gatheredArticles = gatherRes.output.articles;
-      }
-    } catch (gatherErr) {
-      logs.push(
-        `Browserbase gather attempt notice: ${gatherErr instanceof Error ? gatherErr.message : String(gatherErr)}`,
-      );
+    const gatherRes = await executeNewsGatherNode(node, {
+      ...ctx,
+      targetUrl: resolvedTargetUrl,
+    });
+    logs.push(...gatherRes.logs);
+    if (
+      typeof gatherRes.output?.gatheredDocument === 'string' &&
+      gatherRes.output.gatheredDocument
+    ) {
+      gatheredContent = gatherRes.output.gatheredDocument;
     }
-
-    if (!gatheredContent) {
-      try {
-        logs.push(`Initiating live web fetch for: ${resolvedTargetUrl}`);
-        const res = await fetch(resolvedTargetUrl, {
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            Accept:
-              'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          },
-        });
-        if (res.ok) {
-          const html = await res.text();
-          const cleanText = html
-            .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
-            .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
-            .replace(/<[^>]+>/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-          if (cleanText.length > 100) {
-            gatheredContent = cleanText.slice(0, 16000);
-            logs.push(
-              `Harvested ${gatheredContent.length} characters of live webpage text from ${resolvedTargetUrl}`,
-            );
-          }
-        }
-      } catch (fetchErr) {
-        logs.push(
-          `Live web fetch failed: ${fetchErr instanceof Error ? fetchErr.message : String(fetchErr)}`,
-        );
-      }
+    if (gatherRes.output?.articles) {
+      gatheredArticles = gatherRes.output.articles;
     }
   }
 

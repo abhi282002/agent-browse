@@ -43,7 +43,7 @@ export function WorkflowExecutionPanel({
   const startExecutionMutation = trpc.execution.startExecution.useMutation({
     onSuccess: (data) => {
       setIsRunningCloud(false);
-      if ('result' in data && data.result) {
+      if (data && 'result' in data && data.result) {
         setCloudResult(data.result as WorkflowExecutionResult);
       }
     },
@@ -80,6 +80,9 @@ export function WorkflowExecutionPanel({
           actionSummary: node.data.actionSummary,
           url: node.data.url,
           archetype: node.data.archetype,
+          aiModel: node.data.aiModel,
+          emailProvider: node.data.emailProvider,
+          metrics: node.data.metrics,
         },
       })),
     });

@@ -458,11 +458,18 @@ export function formatJsonArticlesToDocument(
     doc += `\n=== CATEGORY: ${catName} ===\n`;
     for (const [idx, art] of articles.entries()) {
       doc += `\nStory #${idx + 1}: ${art.headline}\n`;
-      if (art.publishedDate)
-        doc += `Published: ${format(
-          new Date(art.publishedDate),
-          'dd-MM-yy hh:mm a',
-        )}\n`;
+      if (art.publishedDate) {
+        let dateStr = art.publishedDate;
+        try {
+          const parsed = new Date(art.publishedDate);
+          if (!isNaN(parsed.getTime())) {
+            dateStr = format(parsed, 'dd-MM-yy hh:mm a');
+          }
+        } catch {
+          dateStr = art.publishedDate;
+        }
+        doc += `Published: ${dateStr}\n`;
+      }
       if (art.url) doc += `Source URL: ${art.url}\n`;
       if (art.summary) doc += `Summary: ${art.summary}\n`;
       if (art.keyPoints && art.keyPoints.length > 0) {
@@ -485,6 +492,7 @@ export function buildCategorySearchQuery(
   const primaryTerm = cfg?.fullName || categoryKey;
   const cleanDomain = domain
     .replace(/^https?:\/\//, '')
+    .replace(/^www\./i, '')
     .replace(/\/.*$/, '')
     .trim();
 

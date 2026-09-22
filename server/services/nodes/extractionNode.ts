@@ -31,13 +31,15 @@ export const executeExtractionNode: NodeHandler = async (node, ctx) => {
         extractRes = await ctx.stagehand.extract(extractInstruction);
         logs.push('✓ Extraction successful on retry');
       } catch (retryErr) {
-        logs.push(
-          `Extract note: ${retryErr instanceof Error ? retryErr.message : String(retryErr)}`,
-        );
+        throw retryErr;
       }
     } else {
       throw err;
     }
+  }
+
+  if (!extractRes) {
+    throw new Error(`Extraction failed to capture data for instruction: "${extractInstruction}".`);
   }
 
   return {

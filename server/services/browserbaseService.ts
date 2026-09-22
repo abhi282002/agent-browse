@@ -1,49 +1,18 @@
-import path from 'path';
-import fs from 'fs';
 import { executeNode } from './nodeRegistry';
-import type { Stagehand, StagehandBrowser } from '@browserbasehq/stagehand';
+import { pickFirstString } from './nodes/nodeUtils';
+import { ensureStagehandExtensionPath } from './stagehandUtils';
+import {
+  browserbase,
+  Stagehand,
+  type StagehandBrowser,
+} from '@browserbasehq/stagehand';
+import { Browserbase } from '@browserbasehq/sdk';
+import { prisma } from '@/lib/prisma';
 
-export function ensureStagehandExtensionPath(): string | undefined {
-  if (
-    process.env.STAGEHAND_EXTENSION_ARCHIVE_PATH &&
-    fs.existsSync(process.env.STAGEHAND_EXTENSION_ARCHIVE_PATH)
-  ) {
-    return process.env.STAGEHAND_EXTENSION_ARCHIVE_PATH;
-  }
-
-  const candidatePaths = [
-    path.resolve(
-      process.cwd(),
-      'node_modules/@browserbasehq/stagehand/dist/assets/stagehand-extension.zip',
-    ),
-    path.resolve(
-      __dirname,
-      '../../node_modules/@browserbasehq/stagehand/dist/assets/stagehand-extension.zip',
-    ),
-    path.resolve(
-      __dirname,
-      '../node_modules/@browserbasehq/stagehand/dist/assets/stagehand-extension.zip',
-    ),
-    'C:\\agentbrowse\\node_modules\\@browserbasehq\\stagehand\\dist\\assets\\stagehand-extension.zip',
-  ];
-
-  for (const candidate of candidatePaths) {
-    if (fs.existsSync(candidate)) {
-      process.env.STAGEHAND_EXTENSION_ARCHIVE_PATH = candidate;
-      return candidate;
-    }
-  }
-
-  return undefined;
-}
+export { ensureStagehandExtensionPath };
 
 // Ensure env variable is initialized as soon as this module loads
 ensureStagehandExtensionPath();
-
-async function getStagehandModule() {
-  ensureStagehandExtensionPath();
-  return await import('@browserbasehq/stagehand');
-}
 
 export interface BrowserbaseStatus {
   isConfigured: boolean;
@@ -77,7 +46,193 @@ export interface WorkflowExecutionResult {
   steps: StepExecutionResult[];
 }
 
+export interface StepExecutionPayload {
+  workflowId: string;
+  workflowName: string;
+  sessionId?: string;
+  stepIndex: number;
+  totalSteps: number;
+  node: {
+    id: string;
+    data: {
+      stepNumber: number;
+      title: string;
+      category: string;
+      badge: string;
+      description: string;
+      actionSummary: string;
+      url?: string;
+      archetype?: string;
+      selector?: string;
+      payload?: string;
+      emailProvider?: 'resend' | 'nodemailer';
+      metrics?: { label: string; value: string }[];
+      [key: string]: unknown;
+    };
+  };
+  targetUrl?: string;
+  aiModel?: string;
+  userEmail?: string;
+  pipelineOutputs?: Record<string, unknown>;
+  previousStepOutput?: Record<string, unknown>;
+  workflowNodes?: Array<{
+    id: string;
+    data: {
+      stepNumber: number;
+      title: string;
+      category: string;
+      badge: string;
+      description: string;
+      actionSummary: string;
+      url?: string;
+      archetype?: string;
+      [key: string]: unknown;
+    };
+  }>;
+}
+
+export interface StepExecutionResultOutput {
+  sessionId: string;
+  liveViewUrl?: string;
+  targetUrl?: string;
+  stepResult: StepExecutionResult;
+  updatedPipelineOutputs: Record<string, unknown>;
+  isLastStep: boolean;
+}
+
+interface ActiveSessionEntry {
+  browser: StagehandBrowser;
+  stagehand: Stagehand;
+  page: unknown;
+  lastUsed: number;
+}
+
 export class BrowserbaseService {
+  private static activeSessions = new Map<string, ActiveSessionEntry>();
+
+  /**
+   * Close and clean up an active Browserbase session
+   */
+  static async closeSession(sessionId: string) {
+    const entry = this.activeSessions.get(sessionId);
+    if (entry) {
+      this.activeSessions.delete(sessionId);
+      try {
+        if (entry.stagehand) await entry.stagehand.close().catch(() => {});
+        if (entry.browser) await entry.browser.close().catch(() => {});
+      } catch (e) {
+        console.warn(
+          `[BrowserbaseService] Error closing session ${sessionId}:`,
+          e,
+        );
+      }
+    }
+  }
+
+  static async fetchSessionPages(sessionId: string) {
+    if (!sessionId || !process.env.BROWSERBASE_API_KEY) {
+      return [];
+    }
+
+    try {
+      const bb = new Browserbase({
+        apiKey: process.env.BROWSERBASE_API_KEY!,
+      });
+      const data = await bb.sessions.replays.retrieve(sessionId);
+      return data.pages ?? [];
+    } catch (e: any) {
+      if (e?.status === 404 || e?.message?.includes('404')) {
+        return [];
+      }
+      console.warn(`[BrowserbaseService] Replay pages retrieval for ${sessionId}:`, e?.message || e);
+      return [];
+    }
+  }
+
+  static async fetchSessionReplay(sessionId: string, pageId: string) {
+    const bb = new Browserbase({
+      apiKey: process.env.BROWSERBASE_API_KEY!,
+    });
+    const playlist = await bb.sessions.replays.retrievePage(sessionId, pageId);
+    return await playlist.text();
+  }
+
+  static async listSessions(limit = 10, status?: string) {
+    if (!process.env.BROWSERBASE_API_KEY) return [];
+    try {
+      const bb = new Browserbase({ apiKey: process.env.BROWSERBASE_API_KEY! });
+      const sessions = await bb.sessions.list(
+        status ? { status: status as 'RUNNING' | 'ERROR' | 'TIMED_OUT' | 'COMPLETED' } : undefined,
+      );
+      return sessions.slice(0, limit).map((s) => ({
+        id: s.id,
+        status: s.status,
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt,
+      }));
+    } catch (e) {
+      console.warn('[BrowserbaseService] Error listing sessions:', e);
+      return [];
+    }
+  }
+
+
+  /**
+   * Create a new persistent Browserbase Context for saving cookies, local storage, and auth state
+   */
+  static async createContext(projectId?: string): Promise<{ id: string }> {
+    const bb = new Browserbase({ apiKey: process.env.BROWSERBASE_API_KEY! });
+    const context = await bb.contexts.create({
+      projectId: projectId || process.env.BROWSERBASE_PROJECT_ID?.trim() || undefined,
+    });
+    return { id: context.id };
+  }
+
+  /**
+   * Retrieve or automatically initialize a persistent Browserbase Context for a workflow
+   */
+  static async getOrCreateWorkflowContext(workflowId: string): Promise<string> {
+    if (!workflowId || !process.env.BROWSERBASE_API_KEY) return '';
+    try {
+      const wf = await prisma.workflow.findUnique({
+        where: { id: workflowId },
+        select: { id: true, sandboxEnv: true },
+      });
+
+      // If already stored as context:UUID
+      if (wf?.sandboxEnv?.startsWith('context:')) {
+        return wf.sandboxEnv.replace('context:', '').trim();
+      }
+
+      // Create new persistent context in Browserbase
+      const newCtx = await this.createContext();
+      if (newCtx?.id) {
+        await prisma.workflow.update({
+          where: { id: workflowId },
+          data: { sandboxEnv: `context:${newCtx.id}` },
+        });
+        return newCtx.id;
+      }
+    } catch (err) {
+      console.warn(
+        `[BrowserbaseService] Error resolving workflow context for ${workflowId}:`,
+        err,
+      );
+    }
+    return '';
+  }
+
+  /**
+   * Cleanup sessions inactive for more than 10 minutes
+   */
+  private static cleanupStaleSessions() {
+    const now = Date.now();
+    for (const [id, entry] of this.activeSessions.entries()) {
+      if (now - entry.lastUsed > 10 * 60 * 1000) {
+        this.closeSession(id).catch(() => {});
+      }
+    }
+  }
   /**
    * Check configuration status of Browserbase credentials
    */
@@ -96,7 +251,10 @@ export class BrowserbaseService {
   /**
    * Launch a standalone browser sandbox session on Browserbase
    */
-  static async createSandboxSession(targetUrl: string = 'https://example.com') {
+  static async createSandboxSession(
+    targetUrl: string = 'https://example.com',
+    options?: { contextId?: string; persist?: boolean },
+  ) {
     const status = this.getStatus();
 
     if (!status.isConfigured) {
@@ -114,12 +272,20 @@ export class BrowserbaseService {
     }
 
     try {
-      const { browserbase } = await getStagehandModule();
+      const contextId = options?.contextId;
       const browser = await browserbase.launch({
         apiKey: process.env.BROWSERBASE_API_KEY!,
         projectId: process.env.BROWSERBASE_PROJECT_ID?.trim() || undefined,
         browserSettings: {
           blockAds: true,
+          ...(contextId
+            ? {
+                context: {
+                  id: contextId,
+                  persist: options?.persist ?? true,
+                },
+              }
+            : {}),
         },
       });
 
@@ -175,43 +341,33 @@ export class BrowserbaseService {
         actionSummary: string;
         url?: string;
         archetype?: string;
+        selector?: string;
+        payload?: string;
+        emailProvider?: 'resend' | 'nodemailer';
+        authEmail?: string;
+        authPassword?: string;
+        aiModel?: string;
+        metrics?: { label: string; value: string }[];
       };
     }>;
+    contextId?: string;
   }): Promise<WorkflowExecutionResult> {
     const startTime = new Date().toISOString();
     const status = this.getStatus();
 
-    // If API key is not configured, perform reliable simulation
     if (!status.isConfigured) {
-      const stepResults: StepExecutionResult[] = payload.nodes.map((node) => ({
-        stepId: node.id,
-        stepNumber: node.data.stepNumber,
-        title: node.data.title,
-        status: 'completed',
-        durationMs: Math.floor(Math.random() * 400) + 300,
-        logs: [
-          `Allocated simulated worker for "${node.data.title}"`,
-          `User Context: ${payload.userEmail || 'anonymous'}`,
-          `Target: ${node.data.url || payload.targetUrl}`,
-          `Action: ${node.data.actionSummary}`,
-          `Completed step successfully.`,
-        ],
-      }));
+      throw new Error(
+        'Browserbase API key not configured. Set BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID environment variables.',
+      );
+    }
 
-      const mockSessionId = `sim-wf-${Date.now().toString(36)}`;
-      return {
-        workflowId: payload.workflowId,
-        workflowName: payload.workflowName,
-        targetUrl: payload.targetUrl,
-        sessionId: mockSessionId,
-        liveViewUrl: `https://browserbase.com/sessions/${mockSessionId}`,
-        status: 'completed',
-        startedAt: startTime,
-        completedAt: new Date().toISOString(),
-        totalSteps: payload.nodes.length,
-        successfulSteps: payload.nodes.length,
-        steps: stepResults,
-      };
+    let contextId = payload.contextId;
+    if (!contextId && payload.workflowId) {
+      try {
+        contextId = await this.getOrCreateWorkflowContext(payload.workflowId);
+      } catch (e) {
+        console.warn('[BrowserbaseService] Error resolving workflow context:', e);
+      }
     }
 
     // Live Execution on Browserbase Cloud via Stagehand
@@ -219,12 +375,19 @@ export class BrowserbaseService {
     let stagehand: Stagehand | undefined;
 
     try {
-      const { browserbase, Stagehand } = await getStagehandModule();
       browser = await browserbase.launch({
         apiKey: process.env.BROWSERBASE_API_KEY!,
         projectId: process.env.BROWSERBASE_PROJECT_ID?.trim() || undefined,
         browserSettings: {
           blockAds: true,
+          ...(contextId
+            ? {
+                context: {
+                  id: contextId,
+                  persist: true,
+                },
+              }
+            : {}),
         },
       });
 
@@ -318,7 +481,6 @@ export class BrowserbaseService {
             errMsg,
           );
           logs.push(`Step warning/error: ${errMsg}`);
-          // Continue execution with graceful logging
           stepResults.push({
             stepId: node.id,
             stepNumber: node.data.stepNumber,
@@ -328,6 +490,8 @@ export class BrowserbaseService {
             logs,
             error: errMsg,
           });
+          // Abort execution: do not execute subsequent nodes
+          break;
         }
       }
 
