@@ -1,14 +1,15 @@
-FROM oven/bun:1.3.14 AS build
+FROM node:22-bookworm-slim AS build
 
 WORKDIR /app
 
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
+RUN npm install --ignore-scripts
 
 COPY . .
-RUN bun run build
+RUN npx prisma generate
+RUN npm run build
 
-FROM oven/bun:1.3.14 AS runner
+FROM node:22-bookworm-slim AS runner
 
 WORKDIR /app
 ENV NODE_ENV=production
@@ -16,4 +17,4 @@ ENV NODE_ENV=production
 COPY --from=build /app ./
 
 EXPOSE 3000
-CMD ["bun", "run", "start"]
+CMD ["npm", "run", "start"]
