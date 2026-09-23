@@ -7,7 +7,6 @@ import {
   Check,
   Trash2,
   ArrowDown,
-  Filter,
   CheckCircle2,
   AlertTriangle,
   Info,
@@ -49,7 +48,9 @@ export function WorkflowLogViewer({
   workflowName,
 }: WorkflowLogViewerProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [levelFilter, setLevelFilter] = useState<'all' | 'info' | 'success' | 'warn' | 'error'>('all');
+  const [levelFilter, setLevelFilter] = useState<
+    'all' | 'info' | 'success' | 'warn' | 'error'
+  >('all');
   const [selectedStep, setSelectedStep] = useState<number | 'all'>('all');
   const [autoScroll, setAutoScroll] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -95,7 +96,10 @@ export function WorkflowLogViewer({
 
   const handleCopyLogs = () => {
     const text = filteredLogs
-      .map((l) => `[${l.timestamp}] [${l.level.toUpperCase()}]${l.stepTitle ? ` [${l.stepTitle}]` : ''} ${l.message}`)
+      .map(
+        (l) =>
+          `[${l.timestamp}] [${l.level.toUpperCase()}]${l.stepTitle ? ` [${l.stepTitle}]` : ''} ${l.message}`,
+      )
       .join('\n');
     navigator.clipboard.writeText(text).then(() => {
       setCopied(true);
@@ -106,11 +110,17 @@ export function WorkflowLogViewer({
   const getLevelIcon = (level: ExecutionLogEntry['level']) => {
     switch (level) {
       case 'success':
-        return <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />;
+        return (
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0 mt-0.5" />
+        );
       case 'warn':
-        return <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />;
+        return (
+          <AlertTriangle className="h-3.5 w-3.5 text-amber-400 shrink-0 mt-0.5" />
+        );
       case 'error':
-        return <XCircle className="h-3.5 w-3.5 text-rose-400 shrink-0 mt-0.5" />;
+        return (
+          <XCircle className="h-3.5 w-3.5 text-rose-400 shrink-0 mt-0.5" />
+        );
       default:
         return <Info className="h-3.5 w-3.5 text-sky-400 shrink-0 mt-0.5" />;
     }
@@ -161,7 +171,8 @@ export function WorkflowLogViewer({
                 <SelectItem value="all">All Steps ({logs.length})</SelectItem>
                 {availableSteps.map(([num, title]) => (
                   <SelectItem key={num} value={String(num)}>
-                    Step {num}: {title.length > 20 ? `${title.slice(0, 20)}...` : title}
+                    Step {num}:{' '}
+                    {title.length > 20 ? `${title.slice(0, 20)}...` : title}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -175,7 +186,7 @@ export function WorkflowLogViewer({
             <Button
               key={lvl}
               type="button"
-              variant={levelFilter === lvl ? "secondary" : "ghost"}
+              variant={levelFilter === lvl ? 'secondary' : 'ghost'}
               size="xs"
               onClick={() => setLevelFilter(lvl)}
               className={`px-2 py-0.5 rounded capitalize text-[10px] font-medium transition-colors cursor-pointer h-auto ${
@@ -204,7 +215,9 @@ export function WorkflowLogViewer({
             }`}
             title={autoScroll ? 'Auto-scroll is ON' : 'Auto-scroll is PAUSED'}
           >
-            <ArrowDown className={`h-3 w-3 ${autoScroll ? 'text-emerald-400' : 'text-zinc-500'}`} />
+            <ArrowDown
+              className={`h-3 w-3 ${autoScroll ? 'text-emerald-400' : 'text-zinc-500'}`}
+            />
             <span className="hidden sm:inline">Follow</span>
           </Button>
 
@@ -218,8 +231,14 @@ export function WorkflowLogViewer({
             className="flex items-center gap-1 px-2 py-1 rounded text-[11px] border border-zinc-800 bg-zinc-950 text-zinc-300 hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-40 h-auto"
             title="Copy filtered logs to clipboard"
           >
-            {copied ? <Check className="h-3 w-3 text-emerald-400" /> : <Copy className="h-3 w-3" />}
-            <span className="hidden sm:inline">{copied ? 'Copied' : 'Copy'}</span>
+            {copied ? (
+              <Check className="h-3 w-3 text-emerald-400" />
+            ) : (
+              <Copy className="h-3 w-3" />
+            )}
+            <span className="hidden sm:inline">
+              {copied ? 'Copied' : 'Copy'}
+            </span>
           </Button>
 
           {/* Clear logs */}
@@ -282,7 +301,9 @@ export function WorkflowLogViewer({
               )}
 
               {/* Message */}
-              <div className={`flex-1 break-all leading-relaxed ${getLevelClass(entry.level)}`}>
+              <div
+                className={`flex-1 break-all leading-relaxed ${getLevelClass(entry.level)}`}
+              >
                 {entry.message}
               </div>
             </div>
@@ -293,7 +314,11 @@ export function WorkflowLogViewer({
         {isRunning && (
           <div className="flex items-center gap-2 py-2 px-1 text-emerald-400 text-xs animate-pulse">
             <span className="h-2 w-2 rounded-full bg-emerald-500 animate-ping" />
-            <span>Agent executing step {activeStepNumber ? `#${activeStepNumber}` : '...' } (listening for CDP events)</span>
+            <span>
+              Agent executing step{' '}
+              {activeStepNumber ? `#${activeStepNumber}` : '...'} (listening for
+              CDP events)
+            </span>
           </div>
         )}
       </div>
@@ -301,8 +326,12 @@ export function WorkflowLogViewer({
       {/* Footer Info Bar */}
       <div className="flex items-center justify-between px-3 py-1 bg-zinc-900/70 border-t border-zinc-800 text-[10px] text-zinc-500 shrink-0">
         <div className="flex items-center gap-2">
-          <span>{filteredLogs.length} / {logs.length} lines</span>
-          {workflowName && <span className="text-zinc-600">• {workflowName}</span>}
+          <span>
+            {filteredLogs.length} / {logs.length} lines
+          </span>
+          {workflowName && (
+            <span className="text-zinc-600">• {workflowName}</span>
+          )}
         </div>
         <div>
           {isRunning ? (
