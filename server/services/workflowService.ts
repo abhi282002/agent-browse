@@ -113,7 +113,7 @@ export class WorkflowService {
       where: { id },
       include: {
         organization: {
-          select: { id: true, name: true },
+          select: { id: true, name: true,aiInstructions: true, defaultAiModel: true },
         },
       },
     });
@@ -136,6 +136,14 @@ export class WorkflowService {
       edges: workflow.edges as unknown as Edge[],
       organizationId: workflow.organizationId || undefined,
       organizationName: workflow.organization?.name || undefined,
+      organization: workflow.organization
+        ? {
+            id: workflow.organization.id,
+            name: workflow.organization.name,
+            aiInstructions: workflow.organization.aiInstructions || undefined,
+            defaultAiModel: workflow.organization.defaultAiModel || undefined,
+          }
+        : undefined,
     };
   }
 

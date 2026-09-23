@@ -67,7 +67,7 @@ export const executeNewsGatherNode: NodeHandler = async (node, ctx) => {
 
     const searchRes = await bb.search.web({
       query: searchQuery,
-      numResults: 3,
+      numResults: 5,
     });
 
     if (!searchRes.results || searchRes.results.length === 0) {
@@ -75,7 +75,7 @@ export const executeNewsGatherNode: NodeHandler = async (node, ctx) => {
       continue;
     }
 
-    const articlesToProcess = searchRes.results.slice(0, 3);
+    const articlesToProcess = searchRes.results.slice(0, 5);
 
     for (let artIdx = 0; artIdx < articlesToProcess.length; artIdx++) {
       const searchArticle = articlesToProcess[artIdx];

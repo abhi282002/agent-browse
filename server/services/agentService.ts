@@ -247,7 +247,7 @@ Format your output cleanly.`;
     const categoriesList =
       input.categories.length > 0
         ? input.categories.join(', ')
-        : 'war, sports, crime, ai, politics';
+        : 'ai, india, world, business, science, education, sports';
 
     let textContent = input.content ? input.content.trim() : '';
 
@@ -288,11 +288,11 @@ Format your output cleanly.`;
 
     const jsonExtractionInstructions = `Analyze the following news webpage content and extract/summarize stories specifically for each of these categories: [${categoriesList}].
 
-For EACH category found in the text, extract and summarize ALL the distinct news stories provided (up to 3-5 stories per category). Do not limit each category to just one single story. Format the result strictly as a valid JSON object containing a "stories" array:
+For EACH category found in the text, extract and summarize the top 5 distinct news stories. Never return more than 5 stories for any category. Format the result strictly as a valid JSON object containing a "stories" array:
 {
   "stories": [
     {
-      "category": "<Full formal category name, e.g. AI & Technology, World & Defense, Sports, Politics & National, Crime & Law, Technology, Health, Culture, Arts, Travel, Earth>",
+      "category": "<One of: AI & Technology, India, World, Business & Economy, Science & Space, Education & Careers, Sports>",
       "heading": "<Concise, punchy news headline>",
       "subheading": "<1 sentence contextual deck / subheading>",
       "text": "<Concise summary paragraph. Avoid raw unescaped newline characters in the text string>",

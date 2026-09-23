@@ -79,9 +79,9 @@ export class NodeTemplateService {
             badge: "Search & Fetch",
             archetype: "news_gather",
             description:
-              "Extracts breaking news stories across 5 categories using Browserbase Web Search API and Fetch API JSON schema.",
+              "Extracts the top 5 stories from each of 7 supported news categories using Browserbase Web Search API and Fetch API JSON schema.",
             actionSummary:
-              "Extract breaking news across 5 categories via Browserbase Search & Fetch API",
+              "Extract the top 5 stories per category across 7 supported categories via Browserbase Search & Fetch API",
             isPremium: false,
             defaultMetrics: [
               { label: "Engine", value: "Search + Fetch" },

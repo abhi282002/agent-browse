@@ -9,21 +9,71 @@ export interface NewsCategoryConfig {
 }
 
 export const NEWS_CATEGORIES_CONFIG: Record<string, NewsCategoryConfig> = {
-  war: {
-    fullName: 'World & Defense',
+  ai: {
+    fullName: 'AI & Technology',
+    keywords: [
+      'artificial intelligence',
+      'AI',
+      'software',
+      'cybersecurity',
+      'cloud',
+      'technology companies',
+    ],
+    urlPatterns: ['/technology', '/tech', '/ai'],
+  },
+  india: {
+    fullName: 'India',
+    keywords: [
+      'India',
+      'Indian government',
+      'national events',
+      'Indian economy',
+      'infrastructure',
+      'policy',
+    ],
+    urlPatterns: ['/india', '/national', '/politics'],
+  },
+  world: {
+    fullName: 'World',
     keywords: [
       'world',
       'international',
       'global',
-      'war',
-      'defence',
-      'defense',
-      'conflict',
+      'geopolitics',
+      'international relations',
+      'diplomacy',
     ],
     urlPatterns: ['/world', '/international'],
   },
+  business: {
+    fullName: 'Business & Economy',
+    keywords: [
+      'business',
+      'economy',
+      'markets',
+      'startups',
+      'companies',
+      'jobs',
+      'inflation',
+    ],
+    urlPatterns: ['/business', '/economy', '/markets', '/money'],
+  },
+  science: {
+    fullName: 'Science & Space',
+    keywords: [
+      'science',
+      'space',
+      'NASA',
+      'ISRO',
+      'physics',
+      'biology',
+      'research',
+      'discoveries',
+    ],
+    urlPatterns: ['/science', '/space', '/technology/science'],
+  },
   education: {
-    fullName: 'Education',
+    fullName: 'Education & Careers',
     keywords: [
       'education',
       'academic',
@@ -40,134 +90,69 @@ export const NEWS_CATEGORIES_CONFIG: Record<string, NewsCategoryConfig> = {
   },
   sports: {
     fullName: 'Sports',
-    keywords: ['sports', 'sport', 'cricket', 'football', 'ipl'],
+    keywords: [
+      'sports',
+      'sport',
+      'cricket',
+      'football',
+      'tournaments',
+      'athletes',
+    ],
     urlPatterns: ['/sports', '/sports/cricket'],
   },
-  crime: {
-    fullName: 'Crime & Law',
-    keywords: ['crime', 'police', 'legal', 'investigation', 'law'],
-    urlPatterns: ['/crime', '/city/crime', '/city'],
-  },
-  ai: {
-    fullName: 'AI & Technology',
-    keywords: [
-      'technology',
-      'tech',
-      'gadgets',
-      'artificial intelligence',
-      'science',
-    ],
-    urlPatterns: ['/technology', '/tech', '/gadgets-news'],
-  },
-  politics: {
-    fullName: 'Politics & National',
-    keywords: [
-      'politics',
-      'political',
-      'india',
-      'national',
-      'elections',
-      'parliament',
-    ],
-    urlPatterns: ['/india', '/politics'],
-  },
-  technology: {
-    fullName: 'Technology',
-    keywords: [
-      'technology',
-      'tech',
-      'gadgets',
-      'software',
-      'hardware',
-      'cybersecurity',
-      'smartphones',
-      'computing',
-      'innovation',
-    ],
-    urlPatterns: ['/technology', '/tech', '/gadgets-news'],
-  },
-  health: {
-    fullName: 'Health',
-    keywords: [
-      'health',
-      'medical',
-      'wellness',
-      'fitness',
-      'medicine',
-      'healthcare',
-      'disease',
-      'nutrition',
-      'mental health',
-    ],
-    urlPatterns: [
-      '/health',
-      '/life-style/health-fitness',
-      '/lifestyle/health-fitness',
-    ],
-  },
-  culture: {
-    fullName: 'Culture',
-    keywords: [
-      'culture',
-      'heritage',
-      'society',
-      'traditions',
-      'history',
-      'community',
-      'lifestyle',
-      'customs',
-    ],
-    urlPatterns: ['/culture', '/lifestyle/culture', '/life-style'],
-  },
-  arts: {
-    fullName: 'Arts',
-    keywords: [
-      'arts',
-      'art',
-      'entertainment',
-      'cinema',
-      'music',
-      'movies',
-      'books',
-      'theatre',
-      'literature',
-      'paintings',
-    ],
-    urlPatterns: ['/entertainment', '/arts', '/lifestyle/books'],
-  },
-  travel: {
-    fullName: 'Travel',
-    keywords: [
-      'travel',
-      'tourism',
-      'destinations',
-      'vacation',
-      'hospitality',
-      'explore',
-      'holiday',
-      'flights',
-    ],
-    urlPatterns: [
-      '/travel',
-      '/lifestyle/spotlight/travel',
-      '/life-style/spotlight/travel',
-    ],
-  },
-  earth: {
-    fullName: 'Earth',
-    keywords: [
-      'earth',
-      'environment',
-      'climate',
-      'nature',
-      'planet',
-      'wildlife',
-      'ecology',
-      'sustainability',
-      'global warming',
-    ],
-    urlPatterns: ['/environment', '/earth', '/climate-change', '/nature'],
-  },
+};
+
+export type NewsCategoryKey = keyof typeof NEWS_CATEGORIES_CONFIG;
+export const NEWS_CATEGORY_KEYS = Object.keys(
+  NEWS_CATEGORIES_CONFIG,
+) as NewsCategoryKey[];
+
+const normalizeCategoryKey = (value: string): NewsCategoryKey | null => {
+  const key = value.trim().toLowerCase();
+  return NEWS_CATEGORY_KEYS.includes(key as NewsCategoryKey)
+    ? (key as NewsCategoryKey)
+    : null;
+};
+
+const getCategoryConfig = (category: string): NewsCategoryConfig => {
+  const key = normalizeCategoryKey(category);
+  if (key && NEWS_CATEGORIES_CONFIG[key]) {
+    return NEWS_CATEGORIES_CONFIG[key];
+  }
+
+  return {
+    fullName:
+      category.trim().charAt(0).toUpperCase() + category.trim().slice(1),
+    keywords: [category.trim().toLowerCase()],
+    urlPatterns: [`/${category.trim().toLowerCase()}`],
+  };
+};
+
+const normalizeRequestedCategories = (payload?: string): string[] => {
+  if (!payload || !payload.trim()) return [...NEWS_CATEGORY_KEYS];
+
+  const parseValue = (input: string): string[] =>
+    input
+      .split(input.includes(',') ? ',' : /\s+/)
+      .map((item) => item.trim().toLowerCase())
+      .filter(Boolean);
+
+  try {
+    const parsed = JSON.parse(payload);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const categories = parsed
+        .map((item) => String(item).trim().toLowerCase())
+        .filter((item) => normalizeCategoryKey(item));
+      return categories.length > 0 ? categories : [...NEWS_CATEGORY_KEYS];
+    }
+  } catch {
+    const categories = parseValue(payload).filter((item) =>
+      normalizeCategoryKey(item),
+    );
+    return categories.length > 0 ? categories : [...NEWS_CATEGORY_KEYS];
+  }
+
+  return [...NEWS_CATEGORY_KEYS];
 };
 
 /**
@@ -286,14 +271,13 @@ export const discoverCategoryAnchors = async (
 
         let matchedAnchor: { url: string; text: string } | null = null;
 
-        // 1. Priority: check if href matches category url pattern
         for (const a of anchors) {
           const href = (a as HTMLAnchorElement).href;
           const text = (a.textContent || '').trim();
           if (!href || href.startsWith('javascript') || href.includes('#'))
             continue;
-          const urlLower = href.toLowerCase();
 
+          const urlLower = href.toLowerCase();
           const matchesUrl = cfg.urlPatterns.some(
             (pattern) =>
               urlLower.endsWith(pattern) ||
@@ -307,15 +291,14 @@ export const discoverCategoryAnchors = async (
           }
         }
 
-        // 2. Second priority: strict word-boundary match on link text
         if (!matchedAnchor) {
           for (const a of anchors) {
             const href = (a as HTMLAnchorElement).href;
             const text = (a.textContent || '').trim();
             if (!href || href.startsWith('javascript') || href.includes('#'))
               continue;
-            const textLower = text.toLowerCase();
 
+            const textLower = text.toLowerCase();
             const isWordMatch = cfg.keywords.some((kw) => {
               const regex = new RegExp(`(^|\\s|\\b)${kw}(\\b|\\s|$)`, 'i');
               return regex.test(textLower);
@@ -351,31 +334,9 @@ export function resolveNewsCategories(payload?: string): {
   categories: string[];
   fullCategoriesList: string[];
 } {
-  let categories = Object.keys(NEWS_CATEGORIES_CONFIG);
-  if (payload && payload.trim()) {
-    try {
-      const parsed = JSON.parse(payload);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        categories = parsed
-          .map((s) => String(s).trim().toLowerCase())
-          .filter(Boolean);
-      }
-    } catch {
-      const delimiter = payload.includes(',') ? ',' : /\s+/;
-      const split = payload
-        .split(delimiter)
-        .map((s) => s.trim().toLowerCase())
-        .filter(Boolean);
-      if (split.length > 0) {
-        categories = split;
-      }
-    }
-  }
-
+  const categories = normalizeRequestedCategories(payload);
   const fullCategoriesList = categories.map(
-    (c) =>
-      NEWS_CATEGORIES_CONFIG[c.toLowerCase().trim()]?.fullName ||
-      c.charAt(0).toUpperCase() + c.slice(1),
+    (category) => getCategoryConfig(category).fullName,
   );
 
   return { categories, fullCategoriesList };
