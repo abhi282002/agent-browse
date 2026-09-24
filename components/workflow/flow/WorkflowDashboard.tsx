@@ -1,12 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useWorkflowManager } from './hooks/useWorkflowManager';
 import { WorkflowCanvas } from './WorkflowCanvas';
 import { LiveblocksWorkflowProvider, CollaborativeCanvas } from './liveblocks';
 import { NodePaletteSidebar } from './nodes/NodePaletteSidebar';
-import { NodeCatalogModal } from './nodes/NodeCatalogModal';
-import { NodeConfigDrawer } from './nodes/NodeConfigDrawer';
 import { AdminNodeManagerModal } from './admin/AdminNodeManagerModal';
 import { EditWorkflowModal } from './modals/EditWorkflowModal';
 import { CreateWorkflowView } from './views/CreateWorkflowView';
@@ -25,9 +23,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { AlertTriangle } from 'lucide-react';
-import { useEffect, useCallback } from 'react';
+import { motion } from 'motion/react';
 import { WorkflowConsoleLog } from './execution/console';
 import type { NodeTemplate, WorkflowNodeType, StepNodeStatus } from './types';
+import { NodeConfigDrawer } from './nodes/NodeConfigDrawer';
 
 interface WorkflowDashboardProps {
   initialCreateMode?: boolean;
@@ -115,13 +114,43 @@ export function WorkflowDashboard({
   const [isScheduleSheetOpen, setIsScheduleSheetOpen] = useState(false);
   const [isConsoleOpen, setIsConsoleOpen] = useState(false);
   const [isAiGenerateModalOpen, setIsAiGenerateModalOpen] = useState(false);
+  const consoleRef = useRef<HTMLDivElement>(null);
+
+  const scrollToConsole = useCallback(() => {
+    setTimeout(() => {
+      consoleRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'end',
+      });
+    }, 80);
+  }, []);
+
+  const handleToggleConsole = useCallback(() => {
+    if (!isConsoleOpen) {
+      setIsConsoleOpen(true);
+      scrollToConsole();
+    } else {
+      const rect = consoleRef.current?.getBoundingClientRect();
+      const isVisible =
+        rect &&
+        rect.top >= 0 &&
+        rect.bottom <=
+          (window.innerHeight || document.documentElement.clientHeight);
+      if (!isVisible) {
+        scrollToConsole();
+      } else {
+        setIsConsoleOpen(false);
+      }
+    }
+  }, [isConsoleOpen, scrollToConsole]);
 
   // Automatically open the console when a workflow starts running
   useEffect(() => {
     if (isRunning) {
       setIsConsoleOpen(true);
+      scrollToConsole();
     }
-  }, [isRunning]);
+  }, [isRunning, scrollToConsole]);
 
   // Adapter: NodePaletteSidebar passes overrides (url, actionSummary, title)
   const handleAddNodeWithOverrides = (
@@ -189,9 +218,10 @@ export function WorkflowDashboard({
             onOpenScheduleSheet={() => setIsScheduleSheetOpen(true)}
             onOpenCreateView={() => setIsCreateView(true)}
             onOpenAiGenerate={() => setIsAiGenerateModalOpen(true)}
-            onToggleConsole={() => setIsConsoleOpen((prev) => !prev)}
+            onToggleConsole={handleToggleConsole}
             onRunPipeline={() => {
               setIsConsoleOpen(true);
+              scrollToConsole();
               runPipeline();
             }}
             onStopPipeline={stopPipeline}
@@ -248,14 +278,27 @@ export function WorkflowDashboard({
 
           {/* Real-time Execution Console & Browserbase Session Relay */}
           {isConsoleOpen && (
-            <WorkflowConsoleLog
-              workflow={activeWorkflow}
-              isRunning={isRunning}
-              executionResult={executionResult}
-              isOpen={isConsoleOpen}
-              onClose={() => setIsConsoleOpen(false)}
-              onRunWorkflow={() => runPipeline()}
-            />
+            <motion.div
+              ref={consoleRef}
+              id="workflow-console-log"
+              initial={{ opacity: 0, y: 35 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                duration: 0.35,
+                delay: 0.6,
+                ease: [0.16, 1, 0.3, 1],
+              }}
+              className="w-full scroll-mt-6"
+            >
+              <WorkflowConsoleLog
+                workflow={activeWorkflow}
+                isRunning={isRunning}
+                executionResult={executionResult}
+                isOpen={isConsoleOpen}
+                onClose={() => setIsConsoleOpen(false)}
+                onRunWorkflow={() => runPipeline()}
+              />
+            </motion.div>
           )}
         </div>
       </div>
@@ -277,7 +320,7 @@ export function WorkflowDashboard({
       />
 
       {/* Node Catalog Modal for Customers */}
-      <NodeCatalogModal
+      {/* <NodeCatalogModal
         isOpen={isCatalogOpen}
         onClose={() => setIsCatalogOpen(false)}
         onSelectTemplate={(template) => {
@@ -286,7 +329,7 @@ export function WorkflowDashboard({
         }}
         onOpenAdmin={isAdmin ? () => setIsAdminModalOpen(true) : undefined}
         isAdmin={isAdmin}
-      />
+      /> */}
 
       {/* Admin Node Studio Modal */}
       {isAdmin && (

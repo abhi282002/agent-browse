@@ -76,7 +76,7 @@ export const organizationRouter = router({
 
   getOrgMembers: protectedProcedure
     .input(z.object({ organizationId: z.string() }))
-    .query(async ({ input, ctx }) => {
+    .query(async ({ input }) => {
       return OrganizationService.getOrganizationMembers(input.organizationId);
     }),
 

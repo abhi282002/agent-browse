@@ -1,9 +1,7 @@
 import { tasks, runs, schedules } from '@trigger.dev/sdk';
 import { BrowserbaseService } from './browserbaseService';
-import type {
-  executeWorkflowPipelineTask,
-  TriggerWorkflowPayload,
-} from '@/trigger/workflowExecution';
+import type { executeWorkflowPipelineTask } from '@/trigger/workflowExecution';
+import type { TriggerWorkflowPayload } from '@/trigger/workflowTypes';
 
 export class TriggerDevService {
   static getStatus() {

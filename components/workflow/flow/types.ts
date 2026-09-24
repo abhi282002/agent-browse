@@ -7,6 +7,7 @@ export type NodeArchetype =
   | "grounding"
   | "action"
   | "form"
+  | "fill_form"
   | "extraction"
   | "webhook"
   | "summarization"

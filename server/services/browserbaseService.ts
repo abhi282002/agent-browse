@@ -1,17 +1,16 @@
 import { executeNode } from './nodeRegistry';
-import { pickFirstString } from './nodes/nodeUtils';
 import { ensureStagehandExtensionPath } from './stagehandUtils';
 import {
   browserbase,
   Stagehand,
   type StagehandBrowser,
+  type Page,
 } from '@browserbasehq/stagehand';
 import { Browserbase } from '@browserbasehq/sdk';
 import { prisma } from '@/lib/prisma';
 
 export { ensureStagehandExtensionPath };
 
-// Ensure env variable is initialized as soon as this module loads
 ensureStagehandExtensionPath();
 
 export interface BrowserbaseStatus {
@@ -38,12 +37,36 @@ export interface WorkflowExecutionResult {
   targetUrl?: string;
   sessionId: string;
   liveViewUrl?: string;
-  status: 'completed' | 'failed';
+  status: 'running' | 'completed' | 'failed';
   startedAt: string;
   completedAt: string;
   totalSteps: number;
   successfulSteps: number;
   steps: StepExecutionResult[];
+}
+
+export interface WorkflowExecutionNodeData {
+  stepNumber: number;
+  title: string;
+  category: string;
+  badge: string;
+  description: string;
+  actionSummary: string;
+  url?: string;
+  archetype?: string;
+  selector?: string;
+  payload?: string;
+  emailProvider?: 'resend' | 'nodemailer';
+  authEmail?: string;
+  authPassword?: string;
+  aiModel?: string;
+  metrics?: { label: string; value: string }[];
+  [key: string]: unknown;
+}
+
+export interface WorkflowExecutionNodeItem {
+  id: string;
+  data: WorkflowExecutionNodeData;
 }
 
 export interface StepExecutionPayload {
@@ -52,43 +75,13 @@ export interface StepExecutionPayload {
   sessionId?: string;
   stepIndex: number;
   totalSteps: number;
-  node: {
-    id: string;
-    data: {
-      stepNumber: number;
-      title: string;
-      category: string;
-      badge: string;
-      description: string;
-      actionSummary: string;
-      url?: string;
-      archetype?: string;
-      selector?: string;
-      payload?: string;
-      emailProvider?: 'resend' | 'nodemailer';
-      metrics?: { label: string; value: string }[];
-      [key: string]: unknown;
-    };
-  };
+  node: WorkflowExecutionNodeItem;
   targetUrl?: string;
   aiModel?: string;
   userEmail?: string;
   pipelineOutputs?: Record<string, unknown>;
   previousStepOutput?: Record<string, unknown>;
-  workflowNodes?: Array<{
-    id: string;
-    data: {
-      stepNumber: number;
-      title: string;
-      category: string;
-      badge: string;
-      description: string;
-      actionSummary: string;
-      url?: string;
-      archetype?: string;
-      [key: string]: unknown;
-    };
-  }>;
+  workflowNodes?: WorkflowExecutionNodeItem[];
 }
 
 export interface StepExecutionResultOutput {
@@ -110,9 +103,6 @@ interface ActiveSessionEntry {
 export class BrowserbaseService {
   private static activeSessions = new Map<string, ActiveSessionEntry>();
 
-  /**
-   * Close and clean up an active Browserbase session
-   */
   static async closeSession(sessionId: string) {
     const entry = this.activeSessions.get(sessionId);
     if (entry) {
@@ -144,7 +134,10 @@ export class BrowserbaseService {
       if (e?.status === 404 || e?.message?.includes('404')) {
         return [];
       }
-      console.warn(`[BrowserbaseService] Replay pages retrieval for ${sessionId}:`, e?.message || e);
+      console.warn(
+        `[BrowserbaseService] Replay pages retrieval for ${sessionId}:`,
+        e?.message || e,
+      );
       return [];
     }
   }
@@ -162,7 +155,9 @@ export class BrowserbaseService {
     try {
       const bb = new Browserbase({ apiKey: process.env.BROWSERBASE_API_KEY! });
       const sessions = await bb.sessions.list(
-        status ? { status: status as 'RUNNING' | 'ERROR' | 'TIMED_OUT' | 'COMPLETED' } : undefined,
+        status
+          ? { status: status as 'RUNNING' | 'ERROR' | 'TIMED_OUT' | 'COMPLETED' }
+          : undefined,
       );
       return sessions.slice(0, limit).map((s) => ({
         id: s.id,
@@ -176,21 +171,26 @@ export class BrowserbaseService {
     }
   }
 
+  static async verifyContext(contextId: string): Promise<boolean> {
+    if (!contextId || !process.env.BROWSERBASE_API_KEY) return false;
+    try {
+      const bb = new Browserbase({ apiKey: process.env.BROWSERBASE_API_KEY });
+      await bb.contexts.retrieve(contextId);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 
-  /**
-   * Create a new persistent Browserbase Context for saving cookies, local storage, and auth state
-   */
   static async createContext(projectId?: string): Promise<{ id: string }> {
     const bb = new Browserbase({ apiKey: process.env.BROWSERBASE_API_KEY! });
     const context = await bb.contexts.create({
-      projectId: projectId || process.env.BROWSERBASE_PROJECT_ID?.trim() || undefined,
+      projectId:
+        projectId || process.env.BROWSERBASE_PROJECT_ID?.trim() || undefined,
     });
     return { id: context.id };
   }
 
-  /**
-   * Retrieve or automatically initialize a persistent Browserbase Context for a workflow
-   */
   static async getOrCreateWorkflowContext(workflowId: string): Promise<string> {
     if (!workflowId || !process.env.BROWSERBASE_API_KEY) return '';
     try {
@@ -199,12 +199,17 @@ export class BrowserbaseService {
         select: { id: true, sandboxEnv: true },
       });
 
-      // If already stored as context:UUID
       if (wf?.sandboxEnv?.startsWith('context:')) {
-        return wf.sandboxEnv.replace('context:', '').trim();
+        const storedContextId = wf.sandboxEnv.replace('context:', '').trim();
+        const isValid = await this.verifyContext(storedContextId);
+        if (isValid) {
+          return storedContextId;
+        }
+        console.warn(
+          `[BrowserbaseService] Stored context ${storedContextId} is invalid or expired. Generating replacement.`,
+        );
       }
 
-      // Create new persistent context in Browserbase
       const newCtx = await this.createContext();
       if (newCtx?.id) {
         await prisma.workflow.update({
@@ -222,10 +227,7 @@ export class BrowserbaseService {
     return '';
   }
 
-  /**
-   * Cleanup sessions inactive for more than 10 minutes
-   */
-  private static cleanupStaleSessions() {
+  static cleanupStaleSessions() {
     const now = Date.now();
     for (const [id, entry] of this.activeSessions.entries()) {
       if (now - entry.lastUsed > 10 * 60 * 1000) {
@@ -233,9 +235,7 @@ export class BrowserbaseService {
       }
     }
   }
-  /**
-   * Check configuration status of Browserbase credentials
-   */
+
   static getStatus(): BrowserbaseStatus {
     const apiKey = process.env.BROWSERBASE_API_KEY?.trim();
     const projectId = process.env.BROWSERBASE_PROJECT_ID?.trim();
@@ -248,9 +248,71 @@ export class BrowserbaseService {
     };
   }
 
-  /**
-   * Launch a standalone browser sandbox session on Browserbase
-   */
+  static async launchSafeBrowser(options?: {
+    contextId?: string;
+    persist?: boolean;
+    workflowId?: string;
+  }): Promise<StagehandBrowser> {
+    const apiKey = process.env.BROWSERBASE_API_KEY!;
+    const projectId = process.env.BROWSERBASE_PROJECT_ID?.trim() || undefined;
+    let contextId = options?.contextId;
+
+    if (contextId) {
+      const isValid = await this.verifyContext(contextId);
+      if (!isValid) {
+        console.warn(
+          `[BrowserbaseService] Context ${contextId} is invalid or expired. Resetting.`,
+        );
+        contextId = undefined;
+        if (options?.workflowId) {
+          await prisma.workflow
+            .update({
+              where: { id: options.workflowId },
+              data: { sandboxEnv: 'Chromium 128 (CDP Protocol)' },
+            })
+            .catch(() => {});
+        }
+      }
+    }
+
+    if (contextId) {
+      try {
+        return await browserbase.launch({
+          apiKey,
+          projectId,
+          browserSettings: {
+            blockAds: true,
+            context: {
+              id: contextId,
+              persist: options?.persist ?? true,
+            },
+          },
+        });
+      } catch (launchErr) {
+        console.warn(
+          `[BrowserbaseService] Launch failed with context ${contextId}. Falling back to clean session:`,
+          launchErr,
+        );
+        if (options?.workflowId) {
+          await prisma.workflow
+            .update({
+              where: { id: options.workflowId },
+              data: { sandboxEnv: 'Chromium 128 (CDP Protocol)' },
+            })
+            .catch(() => {});
+        }
+      }
+    }
+
+    return await browserbase.launch({
+      apiKey,
+      projectId,
+      browserSettings: {
+        blockAds: true,
+      },
+    });
+  }
+
   static async createSandboxSession(
     targetUrl: string = 'https://example.com',
     options?: { contextId?: string; persist?: boolean },
@@ -258,7 +320,6 @@ export class BrowserbaseService {
     const status = this.getStatus();
 
     if (!status.isConfigured) {
-      // Graceful fallback simulation when API key is not yet set
       const mockSessionId = `bb-sim-${Date.now().toString(36)}`;
       return {
         sessionId: mockSessionId,
@@ -272,29 +333,12 @@ export class BrowserbaseService {
     }
 
     try {
-      const contextId = options?.contextId;
-      const browser = await browserbase.launch({
-        apiKey: process.env.BROWSERBASE_API_KEY!,
-        projectId: process.env.BROWSERBASE_PROJECT_ID?.trim() || undefined,
-        browserSettings: {
-          blockAds: true,
-          ...(contextId
-            ? {
-                context: {
-                  id: contextId,
-                  persist: options?.persist ?? true,
-                },
-              }
-            : {}),
-        },
-      });
-
+      const browser = await this.launchSafeBrowser(options);
       const [page] = await browser.context.pages();
       if (page) {
         await page.goto(targetUrl, { waitUntil: 'domcontentloaded' });
       }
 
-      // Safe session details
       const sessionId =
         (browser as unknown as { id?: string; sessionId?: string }).sessionId ||
         (browser as unknown as { id?: string }).id ||
@@ -321,35 +365,128 @@ export class BrowserbaseService {
     }
   }
 
-  /**
-   * Execute an automated workflow using Stagehand V4 on Browserbase
-   */
+  private static async executeSingleNode(params: {
+    node: WorkflowExecutionNodeItem;
+    stepNum: number;
+    totalSteps: number;
+    browser: StagehandBrowser;
+    stagehand: Stagehand;
+    page: Page;
+    currentTargetUrl: string;
+    aiModel?: string;
+    userEmail?: string;
+    pipelineOutputs: Record<string, unknown>;
+    previousStepOutput?: Record<string, unknown>;
+    workflowNodes: WorkflowExecutionNodeItem[];
+  }): Promise<{
+    stepResult: StepExecutionResult;
+    updatedTargetUrl: string;
+    output?: Record<string, unknown>;
+  }> {
+    const {
+      node,
+      stepNum,
+      totalSteps,
+      browser,
+      stagehand,
+      page,
+      aiModel,
+      userEmail,
+      pipelineOutputs,
+      previousStepOutput,
+      workflowNodes,
+    } = params;
+
+    let targetUrl = params.currentTargetUrl;
+    const stepStart = Date.now();
+    console.log(
+      `[Workflow] Step ${stepNum}/${totalSteps}: "${node.data.title}" starting...`,
+    );
+    const logs: string[] = [`Starting step: ${node.data.title}`];
+
+    try {
+      if (node.data?.url && node.data.url.startsWith('http')) {
+        targetUrl = node.data.url;
+      }
+
+      const activePage =
+        (await (browser.context as { activePage?: () => Promise<Page> })
+          .activePage?.()
+          .catch(() => undefined)) || page;
+
+      const nodeExecution = await executeNode(node as any, {
+        stagehand,
+        page: activePage,
+        targetUrl,
+        aiModel,
+        userEmail,
+        pipelineOutputs,
+        previousStepOutput,
+        workflowNodes: workflowNodes as any,
+      });
+
+      logs.push(...nodeExecution.logs);
+      let output = nodeExecution.output;
+
+      if (output) {
+        if (
+          typeof output.targetUrl === 'string' &&
+          output.targetUrl.startsWith('http')
+        ) {
+          targetUrl = output.targetUrl;
+        } else if (!output.targetUrl && targetUrl) {
+          output = { ...output, targetUrl };
+        }
+      }
+
+      const durationMs = Date.now() - stepStart;
+      console.log(
+        `[Workflow] Step ${stepNum}/${totalSteps}: "${node.data.title}" completed (${durationMs}ms)`,
+      );
+
+      return {
+        stepResult: {
+          stepId: node.id,
+          stepNumber: node.data.stepNumber,
+          title: node.data.title,
+          status: 'completed',
+          durationMs,
+          logs,
+          output,
+        },
+        updatedTargetUrl: targetUrl,
+        output,
+      };
+    } catch (err) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      console.error(
+        `[Workflow] Step ${stepNum}/${totalSteps}: "${node.data.title}" failed:`,
+        errMsg,
+      );
+      logs.push(`Step warning/error: ${errMsg}`);
+
+      return {
+        stepResult: {
+          stepId: node.id,
+          stepNumber: node.data.stepNumber,
+          title: node.data.title,
+          status: 'failed',
+          durationMs: Date.now() - stepStart,
+          logs,
+          error: errMsg,
+        },
+        updatedTargetUrl: targetUrl,
+      };
+    }
+  }
+
   static async executeWorkflow(payload: {
     workflowId: string;
     workflowName: string;
     targetUrl?: string;
     aiModel?: string;
     userEmail?: string;
-    nodes: Array<{
-      id: string;
-      data: {
-        stepNumber: number;
-        title: string;
-        category: string;
-        badge: string;
-        description: string;
-        actionSummary: string;
-        url?: string;
-        archetype?: string;
-        selector?: string;
-        payload?: string;
-        emailProvider?: 'resend' | 'nodemailer';
-        authEmail?: string;
-        authPassword?: string;
-        aiModel?: string;
-        metrics?: { label: string; value: string }[];
-      };
-    }>;
+    nodes: WorkflowExecutionNodeItem[];
     contextId?: string;
   }): Promise<WorkflowExecutionResult> {
     const startTime = new Date().toISOString();
@@ -370,25 +507,13 @@ export class BrowserbaseService {
       }
     }
 
-    // Live Execution on Browserbase Cloud via Stagehand
     let browser: StagehandBrowser | undefined;
     let stagehand: Stagehand | undefined;
 
     try {
-      browser = await browserbase.launch({
-        apiKey: process.env.BROWSERBASE_API_KEY!,
-        projectId: process.env.BROWSERBASE_PROJECT_ID?.trim() || undefined,
-        browserSettings: {
-          blockAds: true,
-          ...(contextId
-            ? {
-                context: {
-                  id: contextId,
-                  persist: true,
-                },
-              }
-            : {}),
-        },
+      browser = await this.launchSafeBrowser({
+        contextId,
+        workflowId: payload.workflowId,
       });
 
       stagehand = await Stagehand.create({
@@ -398,7 +523,6 @@ export class BrowserbaseService {
       });
 
       const [page] = await browser.context.pages();
-
       if (!page) {
         throw new Error('Browserbase launched without an active page');
       }
@@ -406,7 +530,6 @@ export class BrowserbaseService {
       const stepResults: StepExecutionResult[] = [];
       const pipelineOutputs: Record<string, unknown> = {};
       let previousStepOutput: Record<string, unknown> | undefined = undefined;
-
       let currentTargetUrl =
         (payload.targetUrl && payload.targetUrl.startsWith('http')
           ? payload.targetUrl
@@ -419,79 +542,36 @@ export class BrowserbaseService {
         const node = payload.nodes[i];
         const stepNum = i + 1;
         const totalSteps = payload.nodes.length;
-        const stepStart = Date.now();
-        console.log(
-          `[Workflow] Step ${stepNum}/${totalSteps}: "${node.data.title}" starting...`,
-        );
-        const logs: string[] = [`Starting step: ${node.data.title}`];
 
-        try {
-          if (node.data?.url && node.data.url.startsWith('http')) {
-            currentTargetUrl = node.data.url;
-          }
+        const {
+          stepResult,
+          updatedTargetUrl,
+          output,
+        } = await this.executeSingleNode({
+          node,
+          stepNum,
+          totalSteps,
+          browser,
+          stagehand,
+          page,
+          currentTargetUrl,
+          aiModel: payload.aiModel,
+          userEmail: payload.userEmail,
+          pipelineOutputs,
+          previousStepOutput,
+          workflowNodes: payload.nodes,
+        });
 
-          // Dynamically resolve the active page in case a prior step opened a new tab, redirected, or navigated
-          const activePage =
-            (await browser.context.activePage().catch(() => undefined)) || page;
+        currentTargetUrl = updatedTargetUrl;
+        stepResults.push(stepResult);
 
-          // Execute node using the modular Node Registry with accumulated outputs
-          const nodeExecution = await executeNode(node, {
-            stagehand,
-            page: activePage,
-            targetUrl: currentTargetUrl,
-            aiModel: payload.aiModel,
-            userEmail: payload.userEmail,
-            pipelineOutputs,
-            previousStepOutput,
-            workflowNodes: payload.nodes,
-          });
-
-          logs.push(...nodeExecution.logs);
-          if (nodeExecution.output) {
-            if (
-              typeof nodeExecution.output.targetUrl === 'string' &&
-              nodeExecution.output.targetUrl.startsWith('http')
-            ) {
-              currentTargetUrl = nodeExecution.output.targetUrl;
-            } else if (!nodeExecution.output.targetUrl && currentTargetUrl) {
-              nodeExecution.output.targetUrl = currentTargetUrl;
-            }
-            pipelineOutputs[node.id] = nodeExecution.output;
-            previousStepOutput = nodeExecution.output;
-          }
-
-          const durationMs = Date.now() - stepStart;
-          console.log(
-            `[Workflow] Step ${stepNum}/${totalSteps}: "${node.data.title}" completed (${durationMs}ms)`,
-          );
-
-          stepResults.push({
-            stepId: node.id,
-            stepNumber: node.data.stepNumber,
-            title: node.data.title,
-            status: 'completed',
-            durationMs,
-            logs,
-            output: nodeExecution.output,
-          });
-        } catch (err) {
-          const errMsg = err instanceof Error ? err.message : String(err);
-          console.error(
-            `[Workflow] Step ${stepNum}/${totalSteps}: "${node.data.title}" failed:`,
-            errMsg,
-          );
-          logs.push(`Step warning/error: ${errMsg}`);
-          stepResults.push({
-            stepId: node.id,
-            stepNumber: node.data.stepNumber,
-            title: node.data.title,
-            status: 'failed',
-            durationMs: Date.now() - stepStart,
-            logs,
-            error: errMsg,
-          });
-          // Abort execution: do not execute subsequent nodes
+        if (stepResult.status === 'failed') {
           break;
+        }
+
+        if (output) {
+          pipelineOutputs[node.id] = output;
+          previousStepOutput = output;
         }
       }
 

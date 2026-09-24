@@ -19,6 +19,8 @@ export const KNOWN_DESCRIPTIONS: Record<string, string> = {
   news_summary:
     'Categorizes and summarizes collected news articles into structured briefings',
   form: 'Identifies and fills form fields, dropdowns, and form submissions',
+  fill_form:
+    'Fills text fields, dropdowns, checkboxes, and other form controls before submitting the form',
   grounding:
     'Locates and verifies visual DOM elements and bounding box coordinates',
   navigation:

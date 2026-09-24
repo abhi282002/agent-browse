@@ -7,6 +7,7 @@ import { EmailService } from '@/server/services/emailService';
 import { prisma } from '@/lib/prisma';
 
 import type { Context } from '@/server/trpc/context';
+import { WorkflowService } from '../services/workflowService';
 
 const executionInputSchema = z.object({
   workflowId: z.string(),
@@ -56,59 +57,6 @@ const executionInputSchema = z.object({
     })
     .optional(),
 });
-
-// const executeStepInputSchema = z.object({
-//   workflowId: z.string(),
-//   workflowName: z.string(),
-//   sessionId: z.string().optional(),
-//   stepIndex: z.number(),
-//   totalSteps: z.number(),
-//   targetUrl: z.string().optional().default(''),
-//   aiModel: z.string().optional(),
-//   userEmail: z.string().optional(),
-//   node: z.object({
-//     id: z.string(),
-//     data: z
-//       .object({
-//         stepNumber: z.number(),
-//         title: z.string(),
-//         category: z.string(),
-//         badge: z.string(),
-//         description: z.string(),
-//         actionSummary: z.string(),
-//         url: z.string().optional(),
-//         archetype: z.string().optional(),
-//         selector: z.string().optional(),
-//         payload: z.string().optional(),
-//         emailProvider: z.enum(['resend', 'nodemailer']).optional(),
-//         metrics: z
-//           .array(z.object({ label: z.string(), value: z.string() }))
-//           .optional(),
-//       })
-//       .passthrough(),
-//   }),
-//   pipelineOutputs: z.record(z.string(), z.unknown()).optional(),
-//   previousStepOutput: z.record(z.string(), z.unknown()).optional(),
-//   workflowNodes: z
-//     .array(
-//       z.object({
-//         id: z.string(),
-//         data: z
-//           .object({
-//             stepNumber: z.number(),
-//             title: z.string(),
-//             category: z.string(),
-//             badge: z.string(),
-//             description: z.string(),
-//             actionSummary: z.string(),
-//             url: z.string().optional(),
-//             archetype: z.string().optional(),
-//           })
-//           .passthrough(),
-//       }),
-//     )
-//     .optional(),
-// });
 
 type ExecutionInput = z.infer<typeof executionInputSchema>;
 
@@ -211,7 +159,6 @@ export const executionRouter = router({
       return BrowserbaseService.listSessions(input?.limit, input?.status);
     }),
 
-
   /**
    * Start durable background workflow execution orchestrated by Trigger.dev and Browserbase
    */
@@ -239,16 +186,15 @@ export const executionRouter = router({
         let resolvedOrg = input.organization;
         if (!resolvedOrg && input.workflowId) {
           try {
-            const wf = await prisma.workflow.findUnique({
-              where: { id: input.workflowId },
-              include: { organization: true },
-            });
-            if (wf?.organization) {
+            const workflow = await WorkflowService.getById(input.workflowId);
+            if (workflow?.organization) {
               resolvedOrg = {
-                id: wf.organization.id,
-                name: wf.organization.name,
-                aiInstructions: wf.organization.aiInstructions || undefined,
-                defaultAiModel: wf.organization.defaultAiModel || undefined,
+                id: workflow.organization.id,
+                name: workflow.organization.name,
+                aiInstructions:
+                  workflow.organization.aiInstructions || undefined,
+                defaultAiModel:
+                  workflow.organization.defaultAiModel || undefined,
               };
             }
           } catch {}

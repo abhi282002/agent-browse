@@ -61,19 +61,29 @@ export function AdminCreateNodeForm({
 
   const handleArchetypeChange = (val: string) => {
     setArchetype(val);
-    if (
-      val === "open_url" &&
-      (!title || title === "Turnstile & Cloudflare Solver" || title.includes("Email"))
-    ) {
-      setTitle("Open URL");
-      setCategory("Browser Navigation");
-      setBadge("Launch");
-      setActionSummary("Navigate browser session to target URL and wait for page load");
-      setDescription(
-        "Dedicated browser navigation node that initializes the CDP session and loads the target web address."
-      );
-    } else if (val === "email") {
-      applyEmailDefaults(emailProvider);
+    switch (val) {
+      case "open_url":
+        if (
+          !title ||
+          title === "Turnstile & Cloudflare Solver" ||
+          title.includes("Email")
+        ) {
+          setTitle("Open URL");
+          setCategory("Browser Navigation");
+          setBadge("Launch");
+          setActionSummary(
+            "Navigate browser session to target URL and wait for page load"
+          );
+          setDescription(
+            "Dedicated browser navigation node that initializes the CDP session and loads the target web address."
+          );
+        }
+        break;
+      case "email":
+        applyEmailDefaults(emailProvider);
+        break;
+      default:
+        break;
     }
   };
 

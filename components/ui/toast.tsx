@@ -7,7 +7,61 @@ import { cn } from "cn"
 import { Button } from "@/components/ui/button"
 import { XIcon, CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
 
-const toast = ToastPrimitive.createToastManager()
+const baseToast = ToastPrimitive.createToastManager()
+
+export interface ToastShortcutOptions {
+  description?: React.ReactNode
+  timeout?: number
+  id?: string
+}
+
+const toast = Object.assign(baseToast, {
+  success(title: React.ReactNode, options?: ToastShortcutOptions) {
+    return baseToast.add({
+      id: options?.id,
+      title,
+      type: "success",
+      description: options?.description,
+      timeout: options?.timeout ?? 4000,
+    })
+  },
+  error(title: React.ReactNode, options?: ToastShortcutOptions) {
+    return baseToast.add({
+      id: options?.id,
+      title,
+      type: "error",
+      description: options?.description,
+      timeout: options?.timeout ?? 5000,
+    })
+  },
+  info(title: React.ReactNode, options?: ToastShortcutOptions) {
+    return baseToast.add({
+      id: options?.id,
+      title,
+      type: "info",
+      description: options?.description,
+      timeout: options?.timeout ?? 4000,
+    })
+  },
+  warning(title: React.ReactNode, options?: ToastShortcutOptions) {
+    return baseToast.add({
+      id: options?.id,
+      title,
+      type: "warning",
+      description: options?.description,
+      timeout: options?.timeout ?? 4500,
+    })
+  },
+  loading(title: React.ReactNode, options?: ToastShortcutOptions) {
+    return baseToast.add({
+      id: options?.id,
+      title,
+      type: "loading",
+      description: options?.description,
+      timeout: options?.timeout ?? 0,
+    })
+  },
+})
 
 function ToastProvider({ ...props }: ToastPrimitive.Provider.Props) {
   return <ToastPrimitive.Provider {...props} />
@@ -22,7 +76,7 @@ function ToastViewport({ className, ...props }: ToastPrimitive.Viewport.Props) {
     <ToastPrimitive.Viewport
       data-slot="toast-viewport"
       className={cn(
-        "pointer-events-none fixed inset-x-4 bottom-4 z-50 mx-auto w-auto max-w-sm outline-none sm:right-4 sm:left-auto sm:mx-0 sm:w-full",
+        "pointer-events-none fixed inset-x-4 bottom-5 z-[100] mx-auto w-auto max-w-sm outline-none sm:right-6 sm:left-auto sm:mx-0 sm:w-full",
         className
       )}
       {...props}
@@ -133,40 +187,26 @@ function ToastClose({
 }
 
 function ToastIcon({ type }: { type: string | undefined }) {
-  let icon: React.ReactNode = null
+  let icon: React.ReactNode = null;
 
-  if (type === "success") {
-    icon = (
-      <CircleCheckIcon aria-hidden="true" />
-    )
-  }
-
-  if (type === "info") {
-    icon = (
-      <InfoIcon aria-hidden="true" />
-    )
-  }
-
-  if (type === "warning") {
-    icon = (
-      <TriangleAlertIcon aria-hidden="true" />
-    )
-  }
-
-  if (type === "error") {
-    icon = (
-      <OctagonXIcon className="text-destructive" aria-hidden="true" />
-    )
-  }
-
-  if (type === "loading") {
-    icon = (
-      <Loader2Icon className="animate-spin" aria-hidden="true" />
-    )
-  }
-
-  if (!icon) {
-    return null
+  switch (type) {
+    case "success":
+      icon = <CircleCheckIcon className="text-emerald-500" aria-hidden="true" />;
+      break;
+    case "info":
+      icon = <InfoIcon className="text-blue-500" aria-hidden="true" />;
+      break;
+    case "warning":
+      icon = <TriangleAlertIcon className="text-amber-500" aria-hidden="true" />;
+      break;
+    case "error":
+      icon = <OctagonXIcon className="text-rose-500" aria-hidden="true" />;
+      break;
+    case "loading":
+      icon = <Loader2Icon className="animate-spin text-zinc-500" aria-hidden="true" />;
+      break;
+    default:
+      return null;
   }
 
   return (
@@ -176,7 +216,7 @@ function ToastIcon({ type }: { type: string | undefined }) {
     >
       {icon}
     </span>
-  )
+  );
 }
 
 function ToastList() {

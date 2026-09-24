@@ -306,6 +306,9 @@ function NodeConfigDrawerContent({
                 </SelectItem>
                 <SelectItem value="action">Action (Clicks &amp; Keystrokes)</SelectItem>
                 <SelectItem value="form">Form (Auth &amp; Roadblocks)</SelectItem>
+                <SelectItem value="fill_form">
+                  Fill Form (Fields &amp; Submission)
+                </SelectItem>
                 <SelectItem value="extraction">
                   Extraction (Data &amp; JSON Scraper)
                 </SelectItem>

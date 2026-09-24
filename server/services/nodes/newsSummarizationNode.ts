@@ -125,6 +125,12 @@ export const executeNewsSummarizationNode: NodeHandler = async (node, ctx) => {
     modelName: modelToUse,
   });
 
+  if (!digestResult || !Array.isArray(digestResult.items)) {
+    throw new Error(
+      `News digest generation returned an invalid result for model "${modelToUse}". Verify the configured AI provider response and task deployment.`,
+    );
+  }
+
   logs.push(
     `Synthesized ${digestResult.items.length} categorized stories (${digestResult.provider} - ${digestResult.modelUsed}):`,
   );

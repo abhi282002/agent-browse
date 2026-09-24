@@ -179,7 +179,6 @@ export async function executeWorkflowPipelineRun(
   // Topologically sort nodes using toposort library with fallback to stepNumber
   const nodeIds = payload.nodes.map((node) => node.id);
   let sortedNodeIds: string[] = [];
-
   try {
     const graphEdges: ReadonlyArray<[string, string]> = (payload.edges || [])
       .filter(
@@ -250,20 +249,9 @@ export async function executeWorkflowPipelineRun(
         }
       }
 
-      browser = await browserbase.launch({
-        apiKey: process.env.BROWSERBASE_API_KEY!,
-        projectId: process.env.BROWSERBASE_PROJECT_ID?.trim() || undefined,
-        browserSettings: {
-          blockAds: true,
-          ...(contextId
-            ? {
-                context: {
-                  id: contextId,
-                  persist: true,
-                },
-              }
-            : {}),
-        },
+      browser = await BrowserbaseService.launchSafeBrowser({
+        contextId,
+        workflowId: payload.workflowId,
       });
 
       const bbSessionId =
@@ -316,13 +304,20 @@ export async function executeWorkflowPipelineRun(
         const activePage =
           (await browser?.context.activePage().catch(() => undefined)) || page;
 
-        if (!stagehand || !activePage) {
+        const isNonBrowserArchetype = [
+          'email',
+          'webhook',
+          'summarization',
+          'news_summary',
+        ].includes(currentNode.data.archetype?.toLowerCase() || '');
+
+        if (!isNonBrowserArchetype && (!stagehand || !activePage)) {
           throw new Error('Browser automation context is not available.');
         }
 
         const nodeExecution = await executeNode(currentNode, {
-          stagehand,
-          page: activePage,
+          stagehand: stagehand as Stagehand,
+          page: activePage as Page,
           targetUrl: currentTargetUrl,
           aiModel: payload.aiModel,
           userEmail: payload.userEmail,
