@@ -235,8 +235,12 @@ export async function executeWorkflowPipelineRun(
   let browser: StagehandBrowser | undefined;
   let stagehand: Stagehand | undefined;
   let page: Page | undefined;
+  let browserInitError: string | undefined;
 
-  if (status.isConfigured) {
+  if (!status.isConfigured) {
+    browserInitError = `Browserbase is not configured: BROWSERBASE_API_KEY=${status.apiKeyPresent ? 'present' : 'MISSING'}, BROWSERBASE_PROJECT_ID=${status.projectIdPresent ? 'present' : 'MISSING'}. Add both to Trigger.dev Environment Variables at cloud.trigger.dev.`;
+    console.error('[Trigger.dev] Browser not configured:', browserInitError);
+  } else {
     try {
       let contextId = payload.contextId;
       if (!contextId && payload.workflowId) {
@@ -275,9 +279,11 @@ export async function executeWorkflowPipelineRun(
       const pages = await browser.context.pages();
       page = pages[0];
     } catch (err) {
-      console.warn(
-        '[Trigger.dev] Could not initialize Stagehand browser, executing without browser:',
-        err,
+      // Capture the real error so it surfaces in step failure messages
+      browserInitError = err instanceof Error ? err.message : String(err);
+      console.error(
+        '[Trigger.dev] Browser initialization failed:',
+        browserInitError,
       );
     }
   }
@@ -312,7 +318,11 @@ export async function executeWorkflowPipelineRun(
         ].includes(currentNode.data.archetype?.toLowerCase() || '');
 
         if (!isNonBrowserArchetype && (!stagehand || !activePage)) {
-          throw new Error('Browser automation context is not available.');
+          throw new Error(
+            browserInitError
+              ? `Browser automation failed to initialize: ${browserInitError}`
+              : 'Browser automation context is not available.',
+          );
         }
 
         const nodeExecution = await executeNode(currentNode, {
