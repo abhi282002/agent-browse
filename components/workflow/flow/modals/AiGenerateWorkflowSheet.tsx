@@ -25,12 +25,16 @@ import {
   ArrowRight,
   ShieldCheck,
   Zap,
+  Mic,
+  MicOff,
+  Loader2,
 } from 'lucide-react';
 import type { WorkflowBlueprint } from '../types';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { useWhisperSpeechToText } from '../hooks/useWhisperSpeechToText';
 
 export interface AiGenerateWorkflowSheetProps {
   isOpen: boolean;
@@ -75,6 +79,18 @@ export function AiGenerateWorkflowSheet({
   const [targetUrl, setTargetUrl] = useState('');
   const [aiModel, setAiModel] = useState('Gemini 2.5 Pro Vision');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const {
+    recordingState,
+    errorMessage: sttError,
+    toggleRecording,
+    isRecording,
+    isTranscribing,
+  } = useWhisperSpeechToText({
+    onTranscript: (transcript) => {
+      setGoal((prev) => (prev ? `${prev} ${transcript}` : transcript));
+    },
+  });
 
   const utils = trpc.useContext();
   const generateMutation = trpc.workflow.generateWithAi.useMutation({
@@ -210,19 +226,73 @@ export function AiGenerateWorkflowSheet({
                   Workflow Goal &amp; Instructions{' '}
                   <span className="text-red-500">*</span>
                 </span>
-                <span className="text-[10px] text-zinc-400 font-normal">
-                  Natural Language
-                </span>
+                <div className="flex items-center gap-2">
+                  {/* Whisper speech-to-text mic button */}
+                  <button
+                    type="button"
+                    onClick={toggleRecording}
+                    disabled={isTranscribing}
+                    title={
+                      isRecording
+                        ? 'Stop recording'
+                        : isTranscribing
+                          ? 'Transcribing…'
+                          : 'Dictate with local Whisper'
+                    }
+                    className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border transition-all ${
+                      isRecording
+                        ? 'border-red-300 bg-red-50 text-red-600 animate-pulse'
+                        : isTranscribing
+                          ? 'border-amber-200 bg-amber-50 text-amber-600'
+                          : recordingState === 'error'
+                            ? 'border-rose-200 bg-rose-50 text-rose-600'
+                            : 'border-zinc-200 bg-white text-zinc-500 hover:border-zinc-400 hover:text-zinc-700'
+                    } disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer`}
+                  >
+                    {isTranscribing ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : isRecording ? (
+                      <MicOff className="h-3 w-3" />
+                    ) : (
+                      <Mic className="h-3 w-3" />
+                    )}
+                    <span>
+                      {isTranscribing
+                        ? 'Transcribing…'
+                        : isRecording
+                          ? 'Stop'
+                          : 'Dictate'}
+                    </span>
+                  </button>
+                  <span className="text-[10px] text-zinc-400 font-normal">
+                    Natural Language
+                  </span>
+                </div>
               </Label>
-              <Textarea
-                id="ai-goal"
-                rows={4}
-                value={goal}
-                onChange={(e) => setGoal(e.target.value)}
-                placeholder="Describe your browser automation: e.g. Open product list, extract table of items with prices, synthesize top 3 bargains, and dispatch email notification..."
-                required
-                className="bg-zinc-50/50 text-xs focus:bg-white resize-none"
-              />
+
+              {sttError && (
+                <p className="text-[10px] text-rose-500 font-medium">{sttError}</p>
+              )}
+
+              <div className="relative">
+                <Textarea
+                  id="ai-goal"
+                  rows={4}
+                  value={goal}
+                  onChange={(e) => setGoal(e.target.value)}
+                  placeholder="Describe your browser automation: e.g. Open product list, extract table of items with prices, synthesize top 3 bargains, and dispatch email notification…"
+                  required
+                  className={`bg-zinc-50/50 text-xs focus:bg-white resize-none transition-all ${
+                    isRecording ? 'ring-2 ring-red-300 border-red-300' : ''
+                  }`}
+                />
+                {isRecording && (
+                  <span className="absolute bottom-2 right-2 flex items-center gap-1 text-[10px] text-red-500 font-semibold">
+                    <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
+                    Recording…
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Target URL */}

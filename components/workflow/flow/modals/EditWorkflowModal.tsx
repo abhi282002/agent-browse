@@ -120,7 +120,7 @@ export function EditWorkflowModal({
     >
       <SheetContent
         side="right"
-        className="w-full sm:max-w-xl p-0 flex flex-col bg-white border-l border-zinc-200 shadow-2xl overflow-hidden"
+        className="w-full sm:max-w-lg p-0 flex flex-col bg-white border-l border-zinc-200 shadow-2xl overflow-hidden"
       >
         {/* Header */}
         <SheetHeader className="p-6 border-b border-zinc-100 bg-zinc-50/50">
