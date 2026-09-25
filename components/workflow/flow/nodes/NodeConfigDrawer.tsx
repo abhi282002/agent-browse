@@ -20,6 +20,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { motion, AnimatePresence } from 'motion/react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface NodeConfigDrawerProps {
   node: WorkflowNodeType | null;
@@ -98,6 +108,7 @@ function NodeConfigDrawerContent({
     };
   });
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const updateField = <K extends keyof NodeFormData>(
     field: K,
@@ -555,12 +566,7 @@ function NodeConfigDrawerContent({
           type="button"
           variant="destructive"
           size="sm"
-          onClick={() => {
-            if (confirm('Are you sure you want to remove this node?')) {
-              onDelete(node.id);
-              onClose();
-            }
-          }}
+          onClick={() => setShowDeleteConfirm(true)}
         >
           Delete Node
         </Button>
@@ -585,6 +591,33 @@ function NodeConfigDrawerContent({
           </Button>
         </div>
       </div>
+
+      {/* Delete Node Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Node</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove this node? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setShowDeleteConfirm(false)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                onDelete(node.id);
+                onClose();
+                setShowDeleteConfirm(false);
+              }}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }

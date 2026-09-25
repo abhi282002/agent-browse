@@ -9,7 +9,7 @@ export const ColorfulHeadline: React.FC = () => {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay: 0.04 }}
-      className="text-2xl sm:text-3xl lg:text-[30px] font-extrabold tracking-tight text-neutral-800 dark:text-white leading-snug"
+      className="text-xl sm:text-2xl lg:text-[28px] font-extrabold tracking-tight text-neutral-800 dark:text-white leading-snug"
     >
       <span>Empower AI with </span>
       <motion.span

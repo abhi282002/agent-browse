@@ -33,6 +33,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface OrganizationModalProps {
   isOpen: boolean;
@@ -49,6 +59,7 @@ export function OrganizationModal({
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"member" | "admin">("member");
   const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [memberToRemove, setMemberToRemove] = useState<{ id: string; email: string } | null>(null);
 
   const utils = trpc.useContext();
   const { data: user } = trpc.auth.me.useQuery();
@@ -403,18 +414,9 @@ export function OrganizationModal({
                               type="button"
                               variant="ghost"
                               size="icon-xs"
-                              onClick={() => {
-                                if (
-                                  confirm(
-                                    `Remove ${member.user.email} from this organization?`
-                                  )
-                                ) {
-                                  removeMemberMutation.mutate({
-                                    organizationId: targetOrgId!,
-                                    targetUserId: member.user.id,
-                                  });
-                                }
-                              }}
+                              onClick={() =>
+                                setMemberToRemove({ id: member.user.id, email: member.user.email })
+                              }
                               className="rounded-lg text-zinc-400 hover:bg-red-50 hover:text-red-600"
                               title="Remove member"
                             >
@@ -428,6 +430,40 @@ export function OrganizationModal({
                   })}
                 </div>
               </div>
+
+              {/* Remove Member Confirmation Dialog */}
+              <AlertDialog
+                open={Boolean(memberToRemove)}
+                onOpenChange={(open) => { if (!open) setMemberToRemove(null); }}
+              >
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Remove Member</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Remove <span className="font-semibold text-zinc-900">{memberToRemove?.email}</span> from this organization? They will lose access immediately.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel onClick={() => setMemberToRemove(null)}>
+                      Cancel
+                    </AlertDialogCancel>
+                    <AlertDialogAction
+                      variant="destructive"
+                      onClick={() => {
+                        if (memberToRemove) {
+                          removeMemberMutation.mutate({
+                            organizationId: targetOrgId!,
+                            targetUserId: memberToRemove.id,
+                          });
+                          setMemberToRemove(null);
+                        }
+                      }}
+                    >
+                      Remove
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
 
               {/* Pending Invites List */}
               {org?.invitations && org.invitations.length > 0 && (
