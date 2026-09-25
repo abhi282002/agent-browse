@@ -62,10 +62,10 @@ export function BrowserLiveMock({ currentStep }: BrowserLiveMockProps) {
           <div className="flex items-center justify-between border-b border-zinc-200/60 pb-2">
             <div className="flex items-center gap-2">
               <span className="font-bold text-sm text-zinc-900 tracking-tight">
-                arXiv.org
+                AgentBrowse
               </span>
               <span className="text-[10px] text-zinc-400">
-                Computer Science &gt; AI
+                Live Workflow Execution
               </span>
             </div>
             <span className="rounded bg-zinc-200/60 px-2 py-0.5 text-[10px] font-mono text-zinc-600">
@@ -78,11 +78,11 @@ export function BrowserLiveMock({ currentStep }: BrowserLiveMockProps) {
             <div className="flex items-center justify-between text-xs">
               <span className="font-mono text-[11px] text-zinc-800">
                 {currentStep.stepNumber >= 3
-                  ? 'Reasoning Models & Deep Seek'
-                  : 'Search articles...'}
+                  ? 'Nike Air Max 270 — Price Drop Alert'
+                  : 'Search products...'}
               </span>
               <span className="rounded bg-zinc-900 px-2 py-0.5 text-[10px] text-white">
-                Search
+                Scan
               </span>
             </div>
 
@@ -100,27 +100,26 @@ export function BrowserLiveMock({ currentStep }: BrowserLiveMockProps) {
             )}
           </div>
 
-          {/* Paper listings mock */}
+          {/* Product listings mock */}
           <div className="space-y-1.5 pt-1">
             <div className="rounded-lg border border-zinc-200/70 bg-white p-2 text-left shadow-2xs">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-semibold text-zinc-800">
-                  arXiv:2502.11894 - Deep Thinking Agents in Browser Automation
+                  Nike Air Max 270 — $89.99 → $67.49 (-25%)
                 </span>
                 <span className="text-[9px] rounded bg-emerald-50 text-emerald-700 px-1 border border-emerald-200">
-                  PDF Available
+                  Price Drop
                 </span>
               </div>
               <div className="mt-0.5 text-[10px] text-zinc-500">
-                Authors: S. Altman, D. Hassabis • 18 Feb 2025 • cs.AI
+                Extracted via AgentBrowse · nike.com · 18 ms DOM parse
               </div>
             </div>
 
             <div className="rounded-lg border border-zinc-200/70 bg-white/70 p-2 text-left shadow-2xs">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-semibold text-zinc-800">
-                  arXiv:2501.09241 - Grounded Visual Web Navigation with
-                  Multimodal LLMs
+                  Adidas Ultra Boost 22 — $120.00 (In Stock)
                 </span>
                 <span className="text-[9px] rounded bg-zinc-100 text-zinc-600 px-1">
                   Indexed

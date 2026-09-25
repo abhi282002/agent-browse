@@ -241,7 +241,7 @@ export class BrowserbaseService {
     const projectId = process.env.BROWSERBASE_PROJECT_ID?.trim();
 
     return {
-      isConfigured: Boolean(apiKey && apiKey.length > 5),
+      isConfigured: Boolean(apiKey && apiKey.length > 5 && projectId && projectId.length > 3),
       apiKeyPresent: Boolean(apiKey),
       projectIdPresent: Boolean(projectId),
       provider: 'Browserbase Cloud Chromium (CDP & Stagehand V4)',

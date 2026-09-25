@@ -7,7 +7,7 @@ import { CursorCanvas } from './CursorCanvas';
 
 export const AnimationStage: React.FC = () => {
   return (
-    <div className="relative w-full h-[460px] sm:h-[500px] overflow-hidden select-none">
+    <div className="relative w-full h-[320px] sm:h-[360px] overflow-hidden select-none">
       <ConnectionLinesSvg />
       <FloatingNodesCanvas />
       <CursorCanvas />

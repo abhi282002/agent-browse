@@ -23,16 +23,16 @@ export const HeroActions: React.FC = () => {
           <span>Launch AI Workflow</span>
         </motion.button>
       </Link>
-      <a href="#sandbox-demo">
-        <motion.button
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.98 }}
-          className="flex items-center gap-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white/80 dark:bg-zinc-800/80 px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 backdrop-blur-md hover:bg-zinc-50 dark:hover:bg-zinc-800 shadow-xs"
-        >
-          <TerminalIcon className="h-4 w-4 text-zinc-500" />
-          <span>Live Cloud Sandbox</span>
-        </motion.button>
-      </a>
+      <motion.button
+        whileHover={{ scale: 1.03 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={() => {
+          document.getElementById('auth')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }}
+        className="flex items-center gap-2 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-white/80 dark:bg-zinc-800/80 px-4 py-2.5 text-sm font-medium text-zinc-700 dark:text-zinc-200 backdrop-blur-md hover:bg-zinc-50 dark:hover:bg-zinc-800 shadow-xs"
+      >
+        <span>Get Started →</span>
+      </motion.button>
     </motion.div>
   );
 };

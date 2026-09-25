@@ -13,12 +13,26 @@ export default function Home() {
       <div className="relative z-10 flex flex-col justify-between min-h-screen">
         <Navbar />
 
-        <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 py-4 sm:py-8">
+        <main className="mx-auto w-full max-w-6xl my-5 flex-1 px-4 sm:px-6 py-2 sm:py-4">
           <HeroSection />
 
-          <div id="sandbox-demo" className="grid grid-cols-1 xl:grid-cols-12 gap-8 items-start pt-8 border-t border-zinc-200/80">
-            <div className="xl:col-span-4 flex flex-col gap-6 order-2 xl:order-1">
-              <AuthCard />
+          {/* Section Divider */}
+          <div className="flex items-center gap-3 my-1">
+            <div className="h-px flex-1 bg-neutral-200" />
+            <span className="text-[11px] font-medium text-neutral-400 tracking-widest uppercase">
+              Platform
+            </span>
+            <div className="h-px flex-1 bg-neutral-200" />
+          </div>
+
+          <div
+            id="sandbox-demo"
+            className="grid grid-cols-1 xl:grid-cols-12 gap-4 items-start"
+          >
+            <div className="xl:col-span-4 flex flex-col gap-2 order-2 xl:order-1">
+              <div id="auth">
+                <AuthCard />
+              </div>
               <PlatformMetricsCard />
             </div>
 
