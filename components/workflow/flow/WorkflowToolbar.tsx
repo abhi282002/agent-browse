@@ -1,16 +1,28 @@
 "use client";
 
 import React from "react";
-import { Sparkles } from "lucide-react";
-import { SparklesIcon } from "@/components/ui/icons";
+import {
+  Sparkles,
+  GitFork,
+  Settings,
+  Clock,
+  Plus,
+  Save,
+  Check,
+  X,
+} from "lucide-react";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { WorkflowConsoleToggleButton } from "./execution/WorkflowConsoleToggleButton";
 import { WorkflowRunButton } from "./execution/WorkflowRunButton";
 import type { WorkflowBlueprint } from "./types";
@@ -41,7 +53,6 @@ export interface WorkflowToolbarProps {
 
 /**
  * Returns tailored Tailwind CSS classes based on the save status
- * using an explicit switch statement as requested.
  */
 export function getSaveStatusBadgeColor(status: SaveWorkflowStatus): string {
   switch (status) {
@@ -59,7 +70,6 @@ export function getSaveStatusBadgeColor(status: SaveWorkflowStatus): string {
 
 /**
  * Returns the inner icon and label for the save button
- * using switch logic for determinism.
  */
 export function getSaveButtonContent(status: SaveWorkflowStatus, isSaving: boolean) {
   if (isSaving) {
@@ -75,14 +85,14 @@ export function getSaveButtonContent(status: SaveWorkflowStatus, isSaving: boole
     case "saved":
       return (
         <>
-          <span className="text-emerald-600 font-bold">✓</span>
+          <Check className="h-3.5 w-3.5 text-emerald-600 font-bold" />
           <span className="text-emerald-800">Saved</span>
         </>
       );
     case "error":
       return (
         <>
-          <span className="text-red-600 font-bold">✕</span>
+          <X className="h-3.5 w-3.5 text-red-600 font-bold" />
           <span className="text-red-800">Retry</span>
         </>
       );
@@ -97,10 +107,23 @@ export function getSaveButtonContent(status: SaveWorkflowStatus, isSaving: boole
     default:
       return (
         <>
-          <span>💾</span>
+          <Save className="h-3.5 w-3.5 text-zinc-500" />
           <span>Save</span>
         </>
       );
+  }
+}
+
+function getHostname(url?: string): string | null {
+  if (!url) return null;
+  try {
+    const formatted =
+      url.startsWith("http://") || url.startsWith("https://")
+        ? url
+        : `https://${url}`;
+    return new URL(formatted).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
   }
 }
 
@@ -125,145 +148,237 @@ export function WorkflowToolbar({
   onStopPipeline,
 }: WorkflowToolbarProps) {
   return (
-    <div className="flex items-center justify-between gap-3 flex-wrap bg-white/80 backdrop-blur-xs p-2.5 rounded-2xl border border-zinc-200/90 shadow-2xs">
-      {/* Left: Save + Admin Studio + Target URL pill + Sync status + Node count */}
-      <div className="flex items-center gap-2 flex-wrap text-[11px] font-mono">
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => saveWorkflow()}
-          disabled={isSaving}
-          className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-bold transition-all cursor-pointer h-auto ${getSaveStatusBadgeColor(
-            saveStatus
-          )} disabled:opacity-50`}
-          title="Save current workflow and nodes to PostgreSQL"
+    <div className="flex items-center justify-between gap-2 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-2xl border border-zinc-200/90 shadow-2xs w-full">
+      {/* Left: Workflow Selector + Save + Sync Indicator */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* Modern Workflow Selector Dropdown */}
+        <Select
+          value={activeWorkflow.id}
+          onValueChange={(val) => {
+            if (val) selectWorkflow(val);
+          }}
         >
-          {getSaveButtonContent(saveStatus, isSaving)}
-        </Button>
-
-        {isAdmin && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onOpenAdminModal}
-            className="flex items-center gap-1 rounded-lg border border-amber-300/80 bg-amber-50 px-2.5 py-1 text-[11px] font-bold text-amber-800 hover:bg-amber-100 transition-colors cursor-pointer h-auto"
-            title="Admin studio to create, edit, or customize Free/PRO nodes"
+          <SelectTrigger className="h-8 w-[200px] sm:w-[240px] md:w-[270px] rounded-xl border border-zinc-200/90 bg-white hover:bg-zinc-50/80 px-2.5 text-xs font-semibold text-zinc-900 shadow-2xs transition-colors cursor-pointer flex items-center gap-2 shrink-0 focus-visible:ring-1 focus-visible:ring-zinc-400">
+            <div className="flex h-5 w-5 items-center justify-center rounded-md bg-zinc-900 text-white shrink-0 shadow-2xs">
+              <GitFork className="h-3 w-3" />
+            </div>
+            <span className="truncate flex-1 text-left text-xs font-semibold text-zinc-900">
+              {activeWorkflow.name}
+            </span>
+            <span className="hidden sm:inline-flex text-[10px] text-zinc-400 font-normal px-1.5 py-0.5 rounded bg-zinc-100/90 shrink-0">
+              {activeWorkflow.nodes.length} steps
+            </span>
+          </SelectTrigger>
+          <SelectContent
+            alignItemWithTrigger={false}
+            align="start"
+            sideOffset={6}
+            className="w-[320px] sm:w-[380px] rounded-2xl border border-zinc-200/90 bg-white p-1.5 shadow-xl"
           >
-            <span>⚙️ Admin Node Studio</span>
-          </Button>
-        )}
+            <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-100 mb-1">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-zinc-500 uppercase tracking-wider">
+                <GitFork className="h-3 w-3 text-zinc-400" />
+                <span>Workflows</span>
+              </div>
+              <span className="text-[10px] font-medium text-zinc-400">
+                {workflows.length} blueprints
+              </span>
+            </div>
+            <div className="flex flex-col gap-0.5 max-h-[300px] overflow-y-auto">
+              {workflows.map((wf) => {
+                const isSelected = wf.id === activeWorkflow.id;
+                const hostname = getHostname(wf.targetUrl);
+                return (
+                  <SelectItem
+                    key={wf.id}
+                    value={wf.id}
+                    className={`group rounded-xl px-2.5 py-2 text-xs transition-colors cursor-pointer ${
+                      isSelected
+                        ? "bg-emerald-50/70 text-emerald-950 font-semibold"
+                        : "text-zinc-700 hover:bg-zinc-100/70"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 w-full min-w-0 pr-2">
+                      <div
+                        className={`flex h-6 w-6 items-center justify-center rounded-lg shrink-0 ${
+                          isSelected
+                            ? "bg-emerald-600 text-white shadow-xs"
+                            : "bg-zinc-100 text-zinc-500 group-hover:bg-zinc-200 group-hover:text-zinc-700"
+                        }`}
+                      >
+                        <GitFork className="h-3.5 w-3.5" />
+                      </div>
+                      <div className="flex flex-col min-w-0 text-left">
+                        <span className="truncate text-xs font-semibold text-zinc-900 max-w-[230px]">
+                          {wf.name}
+                        </span>
+                        <span className="text-[10px] text-zinc-400 font-normal">
+                          {wf.nodes.length} nodes{hostname ? ` • ${hostname}` : ""}
+                        </span>
+                      </div>
+                    </div>
+                  </SelectItem>
+                );
+              })}
+            </div>
+          </SelectContent>
+        </Select>
 
-        {/* Workflow Settings Button */}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onOpenEditModal}
-          className="hidden sm:flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 transition-colors cursor-pointer h-auto"
-          title="Edit Workflow Settings & Configuration"
-        >
-          <span>⚙️ Settings</span>
-        </Button>
+        {/* Save Button with Tooltip */}
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => saveWorkflow()}
+                disabled={isSaving}
+                className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer h-8 shadow-2xs shrink-0 ${getSaveStatusBadgeColor(
+                  saveStatus
+                )} disabled:opacity-50`}
+              >
+                {getSaveButtonContent(saveStatus, isSaving)}
+              </Button>
+            }
+          />
+          <TooltipContent side="bottom" sideOffset={6}>
+            <span className="font-semibold block">Save Blueprint</span>
+            <span className="text-zinc-400 text-[10px] block">Persist nodes, edges and settings to database</span>
+          </TooltipContent>
+        </Tooltip>
 
-        <span className="hidden md:inline text-zinc-300">•</span>
-
-        <span className="hidden md:flex items-center gap-1">
-          {isSyncing ? (
-            <>
-              <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
-              <span className="text-amber-700">Syncing...</span>
-            </>
-          ) : (
-            <>
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              <span className="text-emerald-700 font-medium">DB Synced</span>
-            </>
-          )}
-        </span>
-
-        <span className="hidden lg:inline text-zinc-300">•</span>
-        <span className="hidden lg:inline text-zinc-500">
-          Nodes: {activeWorkflow.nodes.length}
-        </span>
+        {/* Sync Status Badge with Tooltip */}
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl bg-zinc-50 border border-zinc-200/80 text-[11px] font-medium text-zinc-500 h-8 cursor-help">
+                {isSyncing ? (
+                  <>
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-ping" />
+                    <span className="text-amber-700 text-[10px] font-semibold">Syncing</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    <span className="text-zinc-600 text-[10px] font-medium">Synced</span>
+                  </>
+                )}
+              </div>
+            }
+          />
+          <TooltipContent side="bottom" sideOffset={6}>
+            <span className="font-semibold block">
+              {isSyncing ? "Syncing..." : "Database Synchronized"}
+            </span>
+            <span className="text-zinc-400 text-[10px] block">
+              All workflow state is saved and in sync
+            </span>
+          </TooltipContent>
+        </Tooltip>
       </div>
 
-      {/* Right: Switch Workflow + Edit Settings + Schedule + New + AI Generate + Console + Run */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {/* Switch Workflow dropdown */}
-        <div className="flex items-center rounded-xl border border-zinc-200 bg-white shadow-2xs hover:border-zinc-300 transition-colors overflow-hidden">
-          <span className="pl-2.5 text-zinc-400 text-xs select-none">🗂️</span>
-          <Select
-            value={activeWorkflow.id}
-            onValueChange={(val) => {
-              if (val) selectWorkflow(val);
-            }}
-          >
-            <SelectTrigger className="border-0 bg-transparent h-8 text-xs font-semibold text-zinc-800 px-2 focus-visible:ring-0 shadow-none cursor-pointer w-[180px] sm:w-[240px]">
-              <SelectValue placeholder="Select workflow">
-                <span className="truncate">{activeWorkflow.name}</span>
-              </SelectValue>
-            </SelectTrigger>
-            <SelectContent className="max-w-[300px]">
-              {workflows.map((wf) => (
-                <SelectItem key={wf.id} value={wf.id} className="text-xs">
-                  <span className="truncate block max-w-[260px]">{wf.name}</span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {/* Right: Actions Segmented Group + AI Generate + Console + Run Workflow */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* Utility Action Group: Settings, Schedule, New */}
+        <div className="flex items-center rounded-xl border border-zinc-200/90 bg-zinc-50/70 p-0.5 shadow-2xs h-8">
+          {isAdmin && (
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <button
+                    type="button"
+                    onClick={onOpenAdminModal}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg text-xs font-medium text-amber-800 hover:bg-amber-100/60 transition-colors cursor-pointer"
+                  >
+                    <span>⚙️</span>
+                  </button>
+                }
+              />
+              <TooltipContent side="bottom" sideOffset={6}>
+                <span className="font-semibold block">Admin Node Studio</span>
+                <span className="text-zinc-400 text-[10px] block">Manage, create or customize Free/PRO nodes</span>
+              </TooltipContent>
+            </Tooltip>
+          )}
+
+          {/* Settings Button + Tooltip */}
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  onClick={onOpenEditModal}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-600 hover:bg-white hover:shadow-2xs hover:text-zinc-900 transition-all cursor-pointer"
+                >
+                  <Settings className="h-3.5 w-3.5" />
+                </button>
+              }
+            />
+            <TooltipContent side="bottom" sideOffset={6}>
+              <span className="font-semibold block">Workflow Settings</span>
+              <span className="text-zinc-400 text-[10px] block">Edit workflow name, target URL & description</span>
+            </TooltipContent>
+          </Tooltip>
+
+          {/* Schedule Button + Tooltip */}
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  onClick={onOpenScheduleSheet}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-600 hover:bg-white hover:shadow-2xs hover:text-zinc-900 transition-all cursor-pointer"
+                >
+                  <Clock className="h-3.5 w-3.5" />
+                </button>
+              }
+            />
+            <TooltipContent side="bottom" sideOffset={6}>
+              <span className="font-semibold block">Automated Schedule</span>
+              <span className="text-zinc-400 text-[10px] block">Set up recurring cron runs & automated execution</span>
+            </TooltipContent>
+          </Tooltip>
+
+          {/* New Workflow Button + Tooltip */}
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  onClick={onOpenCreateView}
+                  className="flex h-7 w-7 items-center justify-center rounded-lg text-zinc-600 hover:bg-white hover:shadow-2xs hover:text-zinc-900 transition-all cursor-pointer"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                </button>
+              }
+            />
+            <TooltipContent side="bottom" sideOffset={6}>
+              <span className="font-semibold block">New Blueprint</span>
+              <span className="text-zinc-400 text-[10px] block">Create a fresh workflow automation graph</span>
+            </TooltipContent>
+          </Tooltip>
         </div>
 
-        {/* Edit Workflow */}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onOpenEditModal}
-          className="flex items-center gap-1 rounded-xl border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-colors cursor-pointer shadow-2xs h-auto"
-          title="Edit Workflow Settings & Target URL"
-        >
-          <span>✏️</span>
-          <span className="hidden sm:inline">Edit</span>
-        </Button>
-
-        {/* Schedule Workflow */}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onOpenScheduleSheet}
-          className="flex items-center gap-1 rounded-xl border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-colors cursor-pointer shadow-2xs h-auto"
-          title="Set up automated schedule for this workflow"
-        >
-          <span>⏰</span>
-          <span className="hidden sm:inline">Schedule</span>
-        </Button>
-
-        {/* + New Workflow */}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={onOpenCreateView}
-          className="flex items-center gap-1 rounded-xl border border-zinc-200 bg-white px-2.5 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-colors cursor-pointer shadow-2xs h-auto"
-          title="Create a new workflow blueprint"
-        >
-          <SparklesIcon className="h-3.5 w-3.5 text-zinc-500" />
-          <span className="hidden sm:inline">New</span>
-        </Button>
-
-        {/* Generate with AI (Opens Left-Side Sheet) */}
-        <Button
-          type="button"
-          size="sm"
-          onClick={onOpenAiGenerate}
-          className="flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400 transition-colors cursor-pointer shadow-2xs h-auto"
-          title="Generate an autonomous workflow blueprint using AI"
-        >
-          <Sparkles className="h-3.5 w-3.5 text-emerald-600 animate-pulse" />
-          <span className="hidden sm:inline">AI Generate</span>
-        </Button>
+        {/* AI Generate Button with Tooltip */}
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <Button
+                type="button"
+                size="sm"
+                onClick={onOpenAiGenerate}
+                className="flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 hover:bg-emerald-100 hover:border-emerald-400 transition-colors cursor-pointer shadow-2xs h-8 shrink-0"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-emerald-600 animate-pulse" />
+                <span className="hidden sm:inline">AI Generate</span>
+              </Button>
+            }
+          />
+          <TooltipContent side="bottom" sideOffset={6}>
+            <span className="font-semibold block">AI Workflow Generator</span>
+            <span className="text-zinc-400 text-[10px] block">Describe your automation goal to generate nodes</span>
+          </TooltipContent>
+        </Tooltip>
 
         {/* Toggle Execution Console */}
         <WorkflowConsoleToggleButton

@@ -21,7 +21,7 @@ export function WorkflowConsoleToggleButton({
       type="button"
       size="sm"
       onClick={onToggle}
-      className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1 text-xs font-medium transition-all cursor-pointer shadow-2xs h-auto ${
+      className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1 text-xs font-medium transition-all cursor-pointer shadow-2xs h-8 shrink-0 ${
         isOpen
           ? 'border-zinc-800 bg-zinc-900 text-white font-semibold hover:bg-zinc-800'
           : 'border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50'
@@ -29,7 +29,7 @@ export function WorkflowConsoleToggleButton({
       title="Toggle Real-time Execution Console & Browserbase Session Relay"
     >
       <Terminal className="h-3.5 w-3.5 text-emerald-400" />
-      <span className="hidden sm:inline">Console</span>
+      <span className="hidden lg:inline">Console</span>
       {isRunning && (
         <span className="flex h-2 w-2 relative">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
