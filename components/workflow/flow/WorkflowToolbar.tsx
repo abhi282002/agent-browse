@@ -191,21 +191,23 @@ export function WorkflowToolbar({
       {/* Right: Switch Workflow + Edit Settings + Schedule + New + AI Generate + Console + Run */}
       <div className="flex items-center gap-2 flex-wrap">
         {/* Switch Workflow dropdown */}
-        <div className="flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50/80 px-2 py-0.5 shadow-2xs hover:border-zinc-300 transition-colors">
-          <span className="text-xs pl-1">🗂️</span>
+        <div className="flex items-center rounded-xl border border-zinc-200 bg-white shadow-2xs hover:border-zinc-300 transition-colors overflow-hidden">
+          <span className="pl-2.5 text-zinc-400 text-xs select-none">🗂️</span>
           <Select
             value={activeWorkflow.id}
             onValueChange={(val) => {
               if (val) selectWorkflow(val);
             }}
           >
-            <SelectTrigger className="border-0 bg-transparent h-7 text-xs font-semibold text-zinc-800 p-1 focus-visible:ring-0 shadow-none cursor-pointer max-w-[160px] sm:max-w-[220px]">
-              <SelectValue />
+            <SelectTrigger className="border-0 bg-transparent h-8 text-xs font-semibold text-zinc-800 px-2 focus-visible:ring-0 shadow-none cursor-pointer w-[180px] sm:w-[240px]">
+              <SelectValue placeholder="Select workflow">
+                <span className="truncate">{activeWorkflow.name}</span>
+              </SelectValue>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className="max-w-[300px]">
               {workflows.map((wf) => (
-                <SelectItem key={wf.id} value={wf.id}>
-                  {wf.name} ({wf.nodes.length} steps)
+                <SelectItem key={wf.id} value={wf.id} className="text-xs">
+                  <span className="truncate block max-w-[260px]">{wf.name}</span>
                 </SelectItem>
               ))}
             </SelectContent>

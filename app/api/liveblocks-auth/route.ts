@@ -81,10 +81,12 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json().catch(() => ({}));
     const room = body?.room;
+
+    // Grant access to the specific room requested AND wildcard for all workflow rooms.
+    // sk_dev_ keys require explicit grants — using '*' ensures dynamic room IDs are never blocked.
+    session.allow('*', session.FULL_ACCESS);
     if (room) {
       session.allow(room, session.FULL_ACCESS);
-    } else {
-      session.allow("*", session.FULL_ACCESS);
     }
 
     const { status, body: authBody } = await session.authorize();
