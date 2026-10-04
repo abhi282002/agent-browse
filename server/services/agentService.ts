@@ -32,7 +32,7 @@ export class AgentService {
       gemini: {
         isConfigured: Boolean(geminiKey && geminiKey.length > 5),
         provider: 'Google Gemini 2.5 Multimodal Engine',
-        defaultModel: 'gemini-2.5-pro',
+        defaultModel: 'gemini-2.5-flash',
       },
       grok: {
         isConfigured: Boolean(grokKey && grokKey.length > 5),
@@ -60,8 +60,56 @@ export class AgentService {
     if (name.includes('flash'))
       return { provider: 'gemini', resolvedModel: 'gemini-2.5-flash' };
     if (name.includes('2.0'))
-      return { provider: 'gemini', resolvedModel: 'gemini-2.0-flash' };
-    return { provider: 'gemini', resolvedModel: 'gemini-2.5-pro' };
+      return { provider: 'gemini', resolvedModel: 'gemini-2.5-flash' };
+    return { provider: 'gemini', resolvedModel: 'gemini-2.5-flash' };
+  }
+
+  /**
+   * Helper to execute Gemini requests with exponential backoff retry for transient errors (503 high demand, 429 rate limit, 5xx server error).
+   */
+  private static async fetchGeminiWithRetry(
+    endpoint: string,
+    body: Record<string, unknown>,
+    maxRetries = 2,
+  ): Promise<Response> {
+    let lastResponse: Response | null = null;
+    let lastError: unknown = null;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      if (attempt > 0) {
+        const backoffMs =
+          Math.min(1500 * Math.pow(2, attempt - 1), 4000) + Math.random() * 500;
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
+      }
+
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        // Transient errors: 503 (High Demand), 429 (Rate Limit), 500, 502, 504
+        if (res.status === 503 || res.status === 429 || res.status >= 500) {
+          lastResponse = res;
+          console.warn(
+            `[AgentService] Gemini API returned transient status ${res.status} (attempt ${attempt + 1}/${maxRetries + 1}). Retrying...`,
+          );
+          continue;
+        }
+
+        return res;
+      } catch (err) {
+        lastError = err;
+        console.warn(
+          `[AgentService] Gemini network error (attempt ${attempt + 1}/${maxRetries + 1}):`,
+          err,
+        );
+      }
+    }
+
+    if (lastResponse) return lastResponse;
+    throw lastError || new Error('Gemini API call failed after retries');
   }
 
   /**
@@ -99,13 +147,9 @@ Please provide:
 2. Key bulleted insights or data findings.
 Format your output cleanly.`;
 
-          const res = await fetch(endpoint, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
-              generationConfig: { temperature: 0.2 },
-            }),
+          const res = await this.fetchGeminiWithRetry(endpoint, {
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: { temperature: 0.2 },
           });
 
           if (!res.ok) {
@@ -140,7 +184,13 @@ Format your output cleanly.`;
             wordCount: approxWords,
           };
         } catch (err) {
-          console.error('[AgentService] Gemini live call failed:', err);
+          console.warn('[AgentService] Gemini live call failed:', err);
+          if (process.env.GROK_API_KEY?.trim()) {
+            console.warn(
+              '[AgentService] Falling back from Gemini to Grok/Groq secondary AI provider...',
+            );
+            return this.summarizeWebPage({ ...input, modelName: 'grok' });
+          }
           throw new Error(
             `Autonomous summarization failed via Gemini: ${err instanceof Error ? err.message : String(err)}`,
           );
@@ -413,16 +463,12 @@ Webpage Content:
 ${textContent.slice(0, 16000)}
 """`;
 
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            generationConfig: {
-              temperature: 0.2,
-              responseMimeType: 'application/json',
-            },
-          }),
+        const res = await this.fetchGeminiWithRetry(endpoint, {
+          contents: [{ parts: [{ text: prompt }] }],
+          generationConfig: {
+            temperature: 0.2,
+            responseMimeType: 'application/json',
+          },
         });
 
         if (!res.ok) {
@@ -449,10 +495,19 @@ ${textContent.slice(0, 16000)}
           );
         }
       } catch (err) {
-        console.error(
+        console.warn(
           `[AgentService] Categorized news digest generation failed via Gemini (${resolvedModel}):`,
           err,
         );
+        if (process.env.GROK_API_KEY?.trim()) {
+          console.warn(
+            `[AgentService] Falling back from Gemini to Grok/Groq secondary AI provider for news digest...`,
+          );
+          return this.generateCategorizedNewsDigest({
+            ...input,
+            modelName: 'grok',
+          });
+        }
         throw new Error(
           `Failed to generate categorized news digest via ${resolvedModel}: ${err instanceof Error ? err.message : String(err)}`,
         );
